@@ -1,6 +1,8 @@
 
 import torch.nn as nn
 
+import copy
+
 class Supergraph:
     def __init__(self, sgraph_size, channels_count, activations_list):
         self.activations = dict()
@@ -29,6 +31,19 @@ class Supergraph:
             self._1x1convs[key] = self._1x1convs[key].cuda()
         return self
 
-    def create_subgraph(self, nodes, adj):
-        exec_order = []
-        pointer = self.sgraph_size
+    def create_subgraph(self, activations, adj):
+        return Subgraph(self, activations, adj)
+
+class CalcItem:
+    def __init__(self, index, save_res):
+        self.index = index
+        self.save_res = save_res
+        
+
+class Subgraph:
+    def __init__(self, supergraph, activatoins, adj):
+        self.supergraph = supergraph
+        selected_activations = dict{}
+        self.adj = adj
+        self.calc_order = self.create_calculation_order()
+
