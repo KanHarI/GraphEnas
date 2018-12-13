@@ -110,7 +110,7 @@ class Submodel(nn.Module):
 		return self
 
 	def refresh_subgraph(self):
-		raise NotImplementedError()
+		nodes = torch.zeros()
 
 	def forward(self, inp):
 		inp = self.subgraph(inp).mean(-1).mean(-1)

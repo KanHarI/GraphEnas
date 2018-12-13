@@ -53,7 +53,7 @@ def activation(tensor):
     # and activation(0) = 0.
     # An activation of relu is irrelevant in this case as frequent
     # architecture changes causes lots of dead neurons...
-    return torch.log(1 + torch.exp(2*tensor)) - LN_2
+    return torch.log(1 + torch.exp(-2*torch.abs(tensor))) + F.relu(2*tensor) - LN_2
 
 
 class Subgraph(nn.Module):

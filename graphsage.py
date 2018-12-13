@@ -8,6 +8,15 @@ import random
 import copy
 
 
+LN_2 = math.log(2)
+def activation(tensor):
+    # A modified softplus that admits a d(activation)/dt (t=0) = 1
+    # and activation(0) = 0.
+    # An activation of relu is irrelevant in this case as frequent
+    # architecture changes causes lots of dead neurons...
+    return torch.log(1 + torch.exp(-2*torch.abs(tensor))) + F.relu(2*tensor) - LN_2
+
+
 class GraphSageLayer(nn.Module):
     def __init__(self, input_dim, output_dim, representation_size):
         # input_dim: size of vector representation of incoming nodes
@@ -61,7 +70,7 @@ class GraphSageLayer(nn.Module):
         # dst_representation = F.relu(dst_representation)
 
         update_src = torch.cat((src_representation, node_id_rep, dst_representation), dim=2)
-        res = F.relu(self.node_update(update_src))
+        res = activation(self.node_update(update_src))
         return res
 
 
@@ -129,8 +138,6 @@ class PyramidGraphSage(nn.Module):
                     feature_sizes[i]+feature_sizes[self.num_layers-i]+feature_sizes[self.num_layers-i-1],
                     feature_sizes[i+1],
                     representation_sizes[i]))
-            # if batchnorm:
-            #     self.norm_layers.append(nn.BatchNorm2d(1, momentum=0.01))
                 
 
     def cuda(self):
