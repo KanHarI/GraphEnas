@@ -152,6 +152,7 @@ class Submodel(nn.Module):
         node_processor_out = self.supermodel.node_processor(node_processor_inp)
         priority = torch.exp(node_processor_out[:,0])
         node_processor_out = node_processor_out[:,1:]
+        raise NotImplemented()
 
 
     def forward(self, inp):
