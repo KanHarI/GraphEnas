@@ -35,7 +35,7 @@ class Supergraph(nn.Module):
 
     def cuda(self):
         for i in range(self.sgraph_size):
-            for j in range(activations_count):
+            for j in range(self.activations_count):
                 self.activations[i][j] = self.activations[i][j].cuda()
             self.norms[i] = self.norms[i].cuda()
         for key in self.links.keys():
