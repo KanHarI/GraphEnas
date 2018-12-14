@@ -39,7 +39,7 @@ SUBMODEL_CHANNELS = 20
 sbm = supermodel.create_submodel(SUBMODEL_LAYERS, LAYERS_BETWEEN_HALVINGS, OUTPUT_DIM, SUBMODEL_CHANNELS)
 
 if torch.cuda.is_available():
-	sbm = sbm.cuda()
+    sbm = sbm.cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
@@ -49,8 +49,13 @@ for epoch in range(2):  # loop over the dataset multiple times
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
+        
         # get the inputs
         inputs, labels = data
+
+        if torch.cuda.is_available():
+            inputs = inputs.cuda()
+            labels = labels.cuda()
 
         # zero the parameter gradients
         optimizer.zero_grad()
