@@ -34,7 +34,7 @@ class Supergraph(nn.Module):
         self.img_extender = nn.Conv2d(inp_channels, channels_count, 1)
 
     def cuda(self):
-        for i in range(self.sgraph_size):
+        for i in range(1, self.sgraph_size):
             for j in range(self.activations_count):
                 self.activations[i][j] = self.activations[i][j].cuda()
             self.norms[i] = self.norms[i].cuda()
