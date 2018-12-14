@@ -108,7 +108,7 @@ class Subgraph(nn.Module):
                         input_img.shape[2]//(2**(i//self.supergraph.layers_between_halvings)),
                         input_img.shape[3]//(2**(i//self.supergraph.layers_between_halvings)))
                 l_input = self.supergraph.norms[i](l_input)
-                l_active = self.supergraph.activations[i][self.chosen_activations[i]]
+                l_active = self.supergraph.activations[i][self.chosen_activations[i]] if i < self.supergraph.sgraph_size-1 else lambda x: x
                 outputs[i] = activation(l_active(l_input))
 
         return outputs[self.supergraph.sgraph_size-1]
