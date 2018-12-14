@@ -41,6 +41,7 @@ class Supergraph(nn.Module):
         for key in self.links.keys():
             self.links[key] = self.links[key].cuda()
         self.img_extender = self.img_extender.cuda()
+        self.img_norm = self.img_norm.cuda()
         return self
 
     def create_subgraph(self, chosen_activations, adj):
