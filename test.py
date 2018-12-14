@@ -34,8 +34,9 @@ supermodel = model.Supermodel()
 SUBMODEL_LAYERS = 10
 LAYERS_BETWEEN_HALVINGS = 4
 OUTPUT_DIM = 10
+SUBMODEL_CHANNELS = 30
 
-sbm = supermodel.create_submodel(SUBMODEL_LAYERS, LAYERS_BETWEEN_HALVINGS, OUTPUT_DIM)
+sbm = supermodel.create_submodel(SUBMODEL_LAYERS, LAYERS_BETWEEN_HALVINGS, OUTPUT_DIM, SUBMODEL_CHANNELS)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
