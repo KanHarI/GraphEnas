@@ -68,7 +68,7 @@ for epoch in range(2):  # loop over the dataset multiple times
 
         # print statistics
         running_loss += loss.item()
-        if i % 1 == 0:
+        if i % 100 == 99:
             print('[%d, %5d] loss: %f' %
                   (epoch + 1, i + 1, running_loss / 2000))
             running_loss = 0.0
