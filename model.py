@@ -4,8 +4,11 @@ import graphsage as gs
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 import math
 import random
+
 
 
 def conv3(channels):
@@ -60,12 +63,13 @@ class Supermodel(nn.Module):
 			[GRAPHSAGE_REPRESENTATION_SIZE] * graphsage_conv_layers)
 		
 		# +1 for priority, + max_halvings for amount of dimensional halvings
-		node_output_feature_sizes = len(activations_list) + 1 + max_halvings
+		node_output_feature_sizes = len(activations_list) + 1
 		self.node_processor = nn.Linear(self.input_feature_sizes + GRAPHSAGE_REPRESENTATION_SIZE, node_output_feature_sizes)
 
 		# inputs: +current distance, +2 for current connectedness
 		# outputs: priority, connectedeness [yes\no]
-		self.pair_selector = nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
+		self.pair_selector_1 = nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
+		self.pair_selector_2 = nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
 
 	def cuda(self):
 		self.graphsage = self.graphsage.cuda()
@@ -96,7 +100,7 @@ class Submodel(nn.Module):
 
 		# All initialized to first possible activation function...
 		self.chosen_activations = torch.zeros(size, dtype=torch.int)
-		for i in range(size):
+		for i in range(1,size-1):
 			self.chosen_activations[i] = random.randint(0,len(self.supermodel.activations_list)-1)
 
 		self.subgraph = self.supergraph.create_subgraph(self.chosen_activations, self.adj_matrix)
@@ -140,8 +144,12 @@ class Submodel(nn.Module):
 				nodes[i, ptr_for + i//self.layers_between_halvings] = 1
 				nodes[i, ptr_rev + ((self.size-1) // self.layers_between_halvings) - i // self.layers_between_halvings] = 1
 
-		graphsage_res = self.supermodel.graphsage((torch.stack([nodes]), torch.stack([self.adj_matrix])))
-		return graphsage_res
+		graphsage_res = self.supermodel.graphsage((torch.stack([nodes]), torch.stack([self.adj_matrix])))[0]
+		node_processor_inp = torch.cat([nodes, graphsage_res], dim=-1)
+		node_processor_out = self.supermodel.node_processor(node_processor_inp)
+		priority = torch.exp(node_processor_out[:,0])
+		node_processor_out = node_processor_out[:,1:]
+
 
 
 	def forward(self, inp):
