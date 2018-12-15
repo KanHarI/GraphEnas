@@ -11,6 +11,7 @@ class Supergraph(nn.Module):
         super().__init__()
         self.activations = dict()
         self.norms = dict()
+        self.channels_count = channels_count
         self.sgraph_size = sgraph_size
         self.activations_count = len(activations_list)
         self.pool = nn.MaxPool2d(2, ceil_mode=True)
@@ -88,7 +89,6 @@ class Subgraph(nn.Module):
         outputs = dict()
         for i in range(self.supergraph.sgraph_size):
             if i not in self.relevant_nodes:
-                print(i)
                 continue
             if i == 0:
                 outputs[i] = self.supergraph.img_extender(self.supergraph.img_norm(input_img))
@@ -105,7 +105,7 @@ class Subgraph(nn.Module):
                     # keep biases originated from these unconnected layers
                     l_input = torch.zeros(
                         input_img.shape[0],
-                        channels_count,
+                        self.supergraph.channels_count * (2**(i//self.supergraph.layers_between_halvings)),
                         input_img.shape[2]//(2**(i//self.supergraph.layers_between_halvings)),
                         input_img.shape[3]//(2**(i//self.supergraph.layers_between_halvings)))
                 l_input = self.supergraph.norms[i](l_input)

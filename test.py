@@ -18,14 +18,21 @@ transform = transforms.Compose(
 
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=64,
-                                          shuffle=True, num_workers=2)
+if torch.cuda.is_available():
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=64,
+                                            shuffle=True, num_workers=2)
+else:
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=64,
+                                            shuffle=True)
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                        download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=64,
-                                         shuffle=False, num_workers=2)
-
+if torch.cuda.is_available():
+    testloader = torch.utils.data.DataLoader(testset, batch_size=64,
+                                            shuffle=True, num_workers=2)
+else:
+    testloader = torch.utils.data.DataLoader(testset, batch_size=64,
+                                            shuffle=True)
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
@@ -45,7 +52,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
 
 
-for epoch in range(5):  # loop over the dataset multiple times
+for epoch in range(2):  # loop over the dataset multiple times
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
@@ -69,7 +76,7 @@ for epoch in range(5):  # loop over the dataset multiple times
         # print statistics
         running_loss += loss.item()
         if i % 100 == 99:
-            print('[%d, %5d] loss: %f' %
+            print('[%5d, %5d] loss: %f' %
                   (epoch + 1, i + 1, running_loss / 2000))
             running_loss = 0.0
 

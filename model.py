@@ -95,12 +95,11 @@ class Submodel(nn.Module):
         self.supergraph = sg.Supergraph(size, channels, self.supermodel.activations_list, layers_between_halvings, inp_channels)
         self.adj_matrix = torch.zeros(size, size)
 
-        # Build skip connections automatically
-        for i in range(0,size-1):
-            self.adj_matrix[i,i+1] = 1
-            if i < size-i-1:
-                self.adj_matrix[i,size-i-1] = 1
-
+        # Build random initial connections
+        for i in range(size-1):
+            for j in range(i+1,size):
+                self.adj_matrix[i,j] = random.randint(0,1)
+            
         # All initialized to first possible activation function...
         self.chosen_activations = torch.zeros(size, dtype=torch.int)
         for i in range(1,size-1):
