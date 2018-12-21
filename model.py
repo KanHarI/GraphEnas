@@ -4,6 +4,7 @@ import graphsage as gs
 
 import torch
 import torch.nn as nn
+import torch.distributions as distributions
 import torch.nn.functional as F
 
 import math
@@ -72,13 +73,13 @@ class Supermodel(nn.Module):
             [GRAPHSAGE_REPRESENTATION_SIZE] * graphsage_conv_layers)
         
         # +1 for priority, + max_halvings for amount of dimensional halvings
-        node_output_feature_sizes = len(activations_list) + 1
+        node_output_feature_sizes = len(activations_list)
         self.node_processor = nn.Linear(self.input_feature_sizes + GRAPHSAGE_REPRESENTATION_SIZE, node_output_feature_sizes)
 
-        # inputs: +current distance, +2 for current connectedness
+        # inputs: +current distance, +1 for current connectedness
         # outputs: priority, connectedeness [yes\no]
         self.pair_selector = nn.Sequential(
-            nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, PAIR_SELECTOR_SIZE_0),
+            nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 1, PAIR_SELECTOR_SIZE_0),
             nn.ReLU(),
             nn.Linear(PAIR_SELECTOR_SIZE_0, PAIR_SELECTOR_SIZE_1),
             nn.ReLU(),
@@ -88,7 +89,7 @@ class Supermodel(nn.Module):
             nn.ReLU(),
             nn.Linear(PAIR_SELECTOR_SIZE_3, PAIR_SELECTOR_SIZE_4),
             nn.ReLU(),
-            nn.Linear(PAIR_SELECTOR_SIZE_4, 1 + 2)
+            nn.Linear(PAIR_SELECTOR_SIZE_4, 2)
             )
         #nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
 
@@ -103,6 +104,11 @@ class Supermodel(nn.Module):
         return Submodel(submodel_size, channels, self, layers_between_halvings, output_dim, inp_channels)
 
 
+class SavedAction:
+    def __init__(self, t_reward, est_reward):
+        self.t_reward = t_reward
+        self.est_reward = est_reward
+
 
 class Submodel(nn.Module):
     def __init__(self, size, channels, supermodel, layers_between_halvings, output_dim, inp_channels):
@@ -113,6 +119,8 @@ class Submodel(nn.Module):
         self.layers_between_halvings = layers_between_halvings
         self.supergraph = sg.Supergraph(size, channels, self.supermodel.activations_list, layers_between_halvings, inp_channels)
         self.adj_matrix = torch.zeros(size, size)
+        self.softmax = nn.Softmax()
+        self.saved_rewards = []
 
         # Build random initial connections
         for i in range(size-1):
@@ -126,6 +134,7 @@ class Submodel(nn.Module):
 
         self.subgraph = self.supergraph.create_subgraph(self.chosen_activations, self.adj_matrix)
         self.final_classifier = nn.Linear(channels*(2**((size-1)//layers_between_halvings)), output_dim)
+        self.valuation = self.get_valuation()
 
     def cuda(self):
         self.supergraph = self.supergraph.cuda()
@@ -133,6 +142,7 @@ class Submodel(nn.Module):
         self.chosen_activations = self.chosen_activations.cuda()
         self.subgraph = self.subgraph.cuda()
         self.final_classifier = self.final_classifier.cuda()
+        self.softmax = self.softmax.cuda()
         return self
 
     def refresh_subgraph(self):
@@ -166,11 +176,37 @@ class Submodel(nn.Module):
                 nodes[i, ptr_rev + ((self.size-1) // self.layers_between_halvings) - i // self.layers_between_halvings] = 1
 
         graphsage_res = self.supermodel.actor_graphsage((torch.stack([nodes]), torch.stack([self.adj_matrix])))[0]
-        node_processor_inp = torch.cat([nodes, graphsage_res], dim=-1)
-        node_processor_out = self.supermodel.node_processor(node_processor_inp)
-        priority = torch.exp(node_processor_out[:,0])
-        node_processor_out = node_processor_out[:,1:]
-        print(node_processor_out)
+
+        update_nodes = random.randint(0,1)
+        action_log_prob = None
+        if update_nodes > 0:
+            cn = random.randint(1,self.size-2)
+            node_processor_inp = torch.cat([nodes[cn], graphsage_res[cn]], dim=-1)
+            node_processor_out = self.softmax(self.supermodel.node_processor(node_processor_inp))
+            node_processor_out = distributions.Categorical(node_processor_out)
+            selected_activation = node_processor_out.sample()
+            nodes[cn, 2 + self.chosen_activations[cn]] = 0
+            self.chosen_activations[cn] = selected_activation
+            nodes[cn, 2 + self.chosen_activations[cn]] = 1
+            action_log_prob = node_processor_out.log_prob(selected_activation)
+
+        else: # edge update
+            src = random.randint(0, self.size-2)
+            dst = random.randint(src+1 ,self.size-1)
+            distance = torch.zeros(self.supermodel.log2_max_size)
+            str_distance = ("0"*self.supermodel.log2_max_size + bin(dst-src)[2:])[-self.supermodel.log2_max_size:]
+            for i in range(self.supermodel.log2_max_size):
+                if str_distance[i] == '1':
+                    distance[i] = 1
+            c_conn = torch.stack((self.adj_matrix[src,dst],))
+            edge_processor_inp = torch.cat([nodes[src], nodes[dst], graphsage_res[src], graphsage_res[dst], distance, c_conn])
+            edge_processor_out = self.softmax(self.supermodel.pair_selector(edge_processor_inp))
+            edge_processor_out = distributions.Categorical(edge_processor_out)
+            selected_edge_conn = edge_processor_out.sample()
+            self.adj_matrix[src, dst] = selected_edge_conn
+            action_log_prob = edge_processor_out.log_prob(selected_edge_conn)
+
+        print(action_log_prob)
         raise NotImplementedError()
 
 
