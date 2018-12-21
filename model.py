@@ -185,7 +185,7 @@ class Submodel(nn.Module):
         if torch.cuda.is_available():
             _nodes = _nodes.cuda()
 
-        graphsage_res = self.supermodel.actor_graphsage((_nodes, adj_matrix))[0]
+        graphsage_res = self.supermodel.actor_graphsage((_nodes, _adj_matrix))[0]
 
         update_nodes = random.randint(0,1)
         action_log_prob = None
@@ -215,7 +215,7 @@ class Submodel(nn.Module):
             edge_processor_inp = torch.cat([nodes[src], nodes[dst], graphsage_res[src], graphsage_res[dst], distance, c_conn])
             if torch.cuda.is_available():
                 edge_processor_inp = edge_processor_inp.cuda()
-                
+
             edge_processor_out = self.softmax(self.supermodel.pair_selector(edge_processor_inp))
             edge_processor_out = distributions.Categorical(edge_processor_out)
             selected_edge_conn = edge_processor_out.sample()
