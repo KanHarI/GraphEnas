@@ -51,6 +51,8 @@ if torch.cuda.is_available():
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
 
+PRINT_FREQUENCY = 100
+
 
 for epoch in range(5):  # loop over the dataset multiple times
 
@@ -75,9 +77,9 @@ for epoch in range(5):  # loop over the dataset multiple times
 
         # print statistics
         running_loss += loss.item()
-        if i % 100 == 99:
+        if i % PRINT_FREQUENCY == PRINT_FREQUENCY - 1:
             print('[%5d, %5d] loss: %f' %
-                  (epoch + 1, i + 1, running_loss / 2000))
+                  (epoch + 1, i + 1, running_loss / PRINT_FREQUENCY))
             running_loss = 0.0
 
 print('Finished Training')
