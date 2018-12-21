@@ -178,7 +178,11 @@ class Submodel(nn.Module):
                 nodes[i, ptr_for + i//self.layers_between_halvings] = 1
                 nodes[i, ptr_rev + ((self.size-1) // self.layers_between_halvings) - i // self.layers_between_halvings] = 1
 
-        graphsage_res = self.supermodel.actor_graphsage((torch.stack([nodes]), torch.stack([self.adj_matrix])))[0]
+        adj_matrix = torch.stack([self.adj_matrix])
+        if torch.cuda.is_available():
+            adj_matrix = adj_matrix.cuda()
+
+        graphsage_res = self.supermodel.actor_graphsage((torch.stack([nodes]), adj_matrix))[0]
 
         update_nodes = random.randint(0,1)
         action_log_prob = None
