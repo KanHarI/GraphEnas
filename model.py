@@ -47,6 +47,12 @@ GRAPHSAGE_REPRESENTATION_SIZE = 60
 SUBMODEL_CHANNELS = 10
 IMAGE_CHANNELS = 3
 
+PAIR_SELECTOR_SIZE_0 = 200
+PAIR_SELECTOR_SIZE_1 = 200
+PAIR_SELECTOR_SIZE_2 = 100
+PAIR_SELECTOR_SIZE_3 = 50
+PAIR_SELECTOR_SIZE_4 = 10
+
 class Supermodel(nn.Module):
     def __init__(self, graphsage_conv_layers=GRAPHSAGE_LAYERS, activations_list=ACTIVATIONS, max_size=256, max_halvings=8):
         super().__init__()
@@ -71,12 +77,25 @@ class Supermodel(nn.Module):
 
         # inputs: +current distance, +2 for current connectedness
         # outputs: priority, connectedeness [yes\no]
-        self.pair_selector_1 = nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
-        self.pair_selector_2 = nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
+        self.pair_selector = nn.Sequential(
+            nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, PAIR_SELECTOR_SIZE_0),
+            nn.ReLU(),
+            nn.Linear(PAIR_SELECTOR_SIZE_0, PAIR_SELECTOR_SIZE_1),
+            nn.ReLU(),
+            nn.Linear(PAIR_SELECTOR_SIZE_1, PAIR_SELECTOR_SIZE_2),
+            nn.ReLU(),
+            nn.Linear(PAIR_SELECTOR_SIZE_2, PAIR_SELECTOR_SIZE_3),
+            nn.ReLU(),
+            nn.Linear(PAIR_SELECTOR_SIZE_3, PAIR_SELECTOR_SIZE_4),
+            nn.ReLU(),
+            nn.Linear(PAIR_SELECTOR_SIZE_4, 1 + 2)
+            )
+        #nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
 
     def cuda(self):
         self.actor_graphsage = self.actor_graphsage.cuda()
         self.node_processor = self.node_processor.cuda()
+        self.critic_graphsage = self.critic_graphsage.cuda()
         self.pair_selector = self.pair_selector.cuda()
         return self
 
@@ -128,7 +147,7 @@ class Submodel(nn.Module):
                 nodes[i,2 + self.chosen_activations[i]] = 1
 
             # Add position pointers
-            ptr_for = 2 + len(self.chosen_activations)
+            ptr_for = 2 + len(self.supermodel.activations_list)
             ptr_rev = ptr_for + self.supermodel.log2_max_size
             for i in range(self.size):
                 for_rep = ('0'*self.supermodel.log2_max_size + bin(i)[2:])[-self.supermodel.log2_max_size:]
@@ -151,7 +170,8 @@ class Submodel(nn.Module):
         node_processor_out = self.supermodel.node_processor(node_processor_inp)
         priority = torch.exp(node_processor_out[:,0])
         node_processor_out = node_processor_out[:,1:]
-        raise NotImplemented()
+        print(node_processor_out)
+        raise NotImplementedError()
 
 
     def forward(self, inp):
