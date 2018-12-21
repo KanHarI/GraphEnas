@@ -178,17 +178,23 @@ class Submodel(nn.Module):
                 nodes[i, ptr_for + i//self.layers_between_halvings] = 1
                 nodes[i, ptr_rev + ((self.size-1) // self.layers_between_halvings) - i // self.layers_between_halvings] = 1
 
-        adj_matrix = torch.stack([self.adj_matrix])
+        _adj_matrix = torch.stack([self.adj_matrix])
         if torch.cuda.is_available():
-            adj_matrix = adj_matrix.cuda()
+            _adj_matrix = _adj_matrix.cuda()
+        _nodes = torch.stack([nodes])
+        if torch.cuda.is_available():
+            _nodes = _nodes.cuda()
 
-        graphsage_res = self.supermodel.actor_graphsage((torch.stack([nodes]), adj_matrix))[0]
+        graphsage_res = self.supermodel.actor_graphsage((_nodes, adj_matrix))[0]
 
         update_nodes = random.randint(0,1)
         action_log_prob = None
         if update_nodes > 0:
             cn = random.randint(1,self.size-2)
             node_processor_inp = torch.cat([nodes[cn], graphsage_res[cn]], dim=-1)
+            if torch.cuda.is_available():
+                node_processor_inp = node_processor_inp.cuda()
+
             node_processor_out = self.softmax(self.supermodel.node_processor(node_processor_inp))
             node_processor_out = distributions.Categorical(node_processor_out)
             selected_activation = node_processor_out.sample()
@@ -207,6 +213,9 @@ class Submodel(nn.Module):
                     distance[i] = 1
             c_conn = torch.stack((self.adj_matrix[src,dst],))
             edge_processor_inp = torch.cat([nodes[src], nodes[dst], graphsage_res[src], graphsage_res[dst], distance, c_conn])
+            if torch.cuda.is_available():
+                edge_processor_inp = edge_processor_inp.cuda()
+                
             edge_processor_out = self.softmax(self.supermodel.pair_selector(edge_processor_inp))
             edge_processor_out = distributions.Categorical(edge_processor_out)
             selected_edge_conn = edge_processor_out.sample()
