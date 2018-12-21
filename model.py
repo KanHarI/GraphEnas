@@ -150,6 +150,9 @@ class Submodel(nn.Module):
             pass
 
         nodes = torch.zeros(self.size, self.supermodel.input_feature_sizes)
+        if torch.cuda.is_available():
+            nodes = nodes.cuda()
+
         for i in range(self.size):
             # Locations
             if i == 0:
@@ -179,11 +182,10 @@ class Submodel(nn.Module):
                 nodes[i, ptr_rev + ((self.size-1) // self.layers_between_halvings) - i // self.layers_between_halvings] = 1
 
         _adj_matrix = torch.stack([self.adj_matrix])
-        if torch.cuda.is_available():
-            _adj_matrix = _adj_matrix.cuda()
         _nodes = torch.stack([nodes])
-        if torch.cuda.is_available():
-            _nodes = _nodes.cuda()
+        # if torch.cuda.is_available():
+        #     _adj_matrix = _adj_matrix.cuda()
+        #     _nodes = _nodes.cuda()
 
         graphsage_res = self.supermodel.actor_graphsage((_nodes, _adj_matrix))[0]
 
@@ -192,8 +194,8 @@ class Submodel(nn.Module):
         if update_nodes > 0:
             cn = random.randint(1,self.size-2)
             node_processor_inp = torch.cat([nodes[cn], graphsage_res[cn]], dim=-1)
-            if torch.cuda.is_available():
-                node_processor_inp = node_processor_inp.cuda()
+            # if torch.cuda.is_available():
+            #     node_processor_inp = node_processor_inp.cuda()
 
             node_processor_out = self.softmax(self.supermodel.node_processor(node_processor_inp))
             node_processor_out = distributions.Categorical(node_processor_out)
@@ -207,6 +209,10 @@ class Submodel(nn.Module):
             src = random.randint(0, self.size-2)
             dst = random.randint(src+1 ,self.size-1)
             distance = torch.zeros(self.supermodel.log2_max_size)
+            
+            if torch.cuda.is_available():
+                distance = distance.cuda()
+
             str_distance = ("0"*self.supermodel.log2_max_size + bin(dst-src)[2:])[-self.supermodel.log2_max_size:]
             for i in range(self.supermodel.log2_max_size):
                 if str_distance[i] == '1':
