@@ -159,6 +159,7 @@ class PyramidGraphSage(nn.Module):
             else:
                 # Concatenate skip connection inputs for pyramid "downward slope"
                 fpass_graph = torch.cat((fpass_graph, stashed_results[self.num_layers-i], stashed_results[self.num_layers-i-1]), dim=2)
+            print(i)
             fpass_graph = self.layers[i]((fpass_graph, adj))
         return fpass_graph
 
