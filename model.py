@@ -183,12 +183,7 @@ class Submodel(nn.Module):
 
         _adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
-        if torch.cuda.is_available():
-            print("CUDAED!")
-            _adj_matrix = _adj_matrix.cuda()
-            _nodes = _nodes.cuda()
 
-        print(type(_nodes))
         graphsage_res = self.supermodel.actor_graphsage((_nodes, _adj_matrix))[0]
 
         update_nodes = random.randint(0,1)
@@ -230,7 +225,7 @@ class Submodel(nn.Module):
             self.adj_matrix[src, dst] = selected_edge_conn
             action_log_prob = edge_processor_out.log_prob(selected_edge_conn)
 
-        print(action_log_prob)
+        # print(action_log_prob)
         #raise NotImplementedError()
 
 
