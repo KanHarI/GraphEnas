@@ -48,6 +48,8 @@ SUBMODEL_CHANNELS = 10
 
 sbm = supermodel.create_submodel(SUBMODEL_LAYERS, LAYERS_BETWEEN_HALVINGS, OUTPUT_DIM, SUBMODEL_CHANNELS)
 
+if torch.cuda.is_available():
+    sbm = sbm.cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
