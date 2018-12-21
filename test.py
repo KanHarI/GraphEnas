@@ -38,8 +38,8 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 supermodel = model.Supermodel()
 
-SUBMODEL_LAYERS = 10
-LAYERS_BETWEEN_HALVINGS = 4
+SUBMODEL_LAYERS = 30
+LAYERS_BETWEEN_HALVINGS = 6
 OUTPUT_DIM = 10
 SUBMODEL_CHANNELS = 20
 
@@ -52,7 +52,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
 
 
-for epoch in range(2):  # loop over the dataset multiple times
+for epoch in range(3):  # loop over the dataset multiple times
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
