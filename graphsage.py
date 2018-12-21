@@ -41,6 +41,7 @@ class GraphSageLayer(nn.Module):
         self.node_update = nn.Linear(3*representation_size, output_dim)
 
     def cuda(self):
+        print("CUDAED GraphSageLayer")
         self.src_representation = self.src_representation.cuda()
         self.dst_representation = self.dst_representation.cuda()
         self.node_self_rep = self.node_self_rep.cuda()
@@ -159,7 +160,6 @@ class PyramidGraphSage(nn.Module):
             else:
                 # Concatenate skip connection inputs for pyramid "downward slope"
                 fpass_graph = torch.cat((fpass_graph, stashed_results[self.num_layers-i], stashed_results[self.num_layers-i-1]), dim=2)
-            print(i)
             fpass_graph = self.layers[i]((fpass_graph, adj))
         return fpass_graph
 
