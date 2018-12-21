@@ -184,6 +184,7 @@ class Submodel(nn.Module):
         _adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
         if torch.cuda.is_available():
+            print("CUDAED!")
             _adj_matrix = _adj_matrix.cuda()
             _nodes = _nodes.cuda()
 
