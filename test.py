@@ -38,6 +38,9 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 supermodel = model.Supermodel()
 
+if torch.cuda.is_available():
+    supermodel = supermodel.cuda()
+
 SUBMODEL_LAYERS = 10
 LAYERS_BETWEEN_HALVINGS = 4
 OUTPUT_DIM = 10
@@ -45,8 +48,6 @@ SUBMODEL_CHANNELS = 10
 
 sbm = supermodel.create_submodel(SUBMODEL_LAYERS, LAYERS_BETWEEN_HALVINGS, OUTPUT_DIM, SUBMODEL_CHANNELS)
 
-if torch.cuda.is_available():
-    sbm = sbm.cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
