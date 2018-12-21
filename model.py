@@ -183,9 +183,9 @@ class Submodel(nn.Module):
 
         _adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
-        # if torch.cuda.is_available():
-        #     _adj_matrix = _adj_matrix.cuda()
-        #     _nodes = _nodes.cuda()
+        if torch.cuda.is_available():
+            _adj_matrix = _adj_matrix.cuda()
+            _nodes = _nodes.cuda()
 
         graphsage_res = self.supermodel.actor_graphsage((_nodes, _adj_matrix))[0]
 
