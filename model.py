@@ -134,18 +134,21 @@ class Submodel(nn.Module):
 
         self.subgraph = self.supergraph.create_subgraph(self.chosen_activations, self.adj_matrix)
         self.final_classifier = nn.Linear(channels*(2**((size-1)//layers_between_halvings)), output_dim)
-        self.valuation = self.get_valuation()
+        self.valuation = None
 
     def cuda(self):
         self.supergraph = self.supergraph.cuda()
         self.adj_matrix = self.adj_matrix.cuda()
         self.chosen_activations = self.chosen_activations.cuda()
         self.subgraph = self.subgraph.cuda()
-        self.final_classifier = self.final_classifier.cuda()
         self.softmax = self.softmax.cuda()
+        self.final_classifier = self.final_classifier.cuda()
         return self
 
     def refresh_subgraph(self):
+        if self.valuation is None:
+            pass
+
         nodes = torch.zeros(self.size, self.supermodel.input_feature_sizes)
         for i in range(self.size):
             # Locations
@@ -207,7 +210,7 @@ class Submodel(nn.Module):
             action_log_prob = edge_processor_out.log_prob(selected_edge_conn)
 
         print(action_log_prob)
-        raise NotImplementedError()
+        #raise NotImplementedError()
 
 
     def forward(self, inp):

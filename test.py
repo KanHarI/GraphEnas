@@ -38,10 +38,10 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 supermodel = model.Supermodel()
 
-SUBMODEL_LAYERS = 30
-LAYERS_BETWEEN_HALVINGS = 6
+SUBMODEL_LAYERS = 10
+LAYERS_BETWEEN_HALVINGS = 4
 OUTPUT_DIM = 10
-SUBMODEL_CHANNELS = 20
+SUBMODEL_CHANNELS = 10
 
 sbm = supermodel.create_submodel(SUBMODEL_LAYERS, LAYERS_BETWEEN_HALVINGS, OUTPUT_DIM, SUBMODEL_CHANNELS)
 
@@ -81,6 +81,7 @@ for epoch in range(5):  # loop over the dataset multiple times
             print('[%5d, %5d] loss: %f' %
                   (epoch + 1, i + 1, running_loss / PRINT_FREQUENCY))
             running_loss = 0.0
+            sbm.refresh_subgraph()
 
 print('Finished Training')
 
