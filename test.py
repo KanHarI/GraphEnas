@@ -84,7 +84,9 @@ for epoch in range(5):  # loop over the dataset multiple times
             print('[%5d, %5d] loss: %f' %
                   (epoch + 1, i + 1, running_loss / PRINT_FREQUENCY))
             running_loss = 0.0
+            print("Refreshing subgraph...")
             sbm.refresh_subgraph()
+            print("Refreshed!")
 
 print('Finished Training')
 
