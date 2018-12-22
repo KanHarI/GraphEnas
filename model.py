@@ -67,10 +67,7 @@ class Supermodel(nn.Module):
             graphsage_conv_layers,
             [self.input_feature_sizes] + [GRAPHSAGE_REPRESENTATION_SIZE] * graphsage_conv_layers,
             [GRAPHSAGE_REPRESENTATION_SIZE] * graphsage_conv_layers)
-        self.critic_graphsage = gs.PyramidGraphSage(
-            graphsage_conv_layers,
-            [self.input_feature_sizes] + [GRAPHSAGE_REPRESENTATION_SIZE] * graphsage_conv_layers,
-            [GRAPHSAGE_REPRESENTATION_SIZE] * graphsage_conv_layers)
+        self.critic = None
         
         # +1 for priority, + max_halvings for amount of dimensional halvings
         node_output_feature_sizes = len(activations_list)
@@ -120,7 +117,7 @@ class Submodel(nn.Module):
         self.supergraph = sg.Supergraph(size, channels, self.supermodel.activations_list, layers_between_halvings, inp_channels)
         self.adj_matrix = torch.zeros(size, size)
         self.softmax = nn.Softmax(0)
-        self.saved_rewards = []
+        self.saved_pred = []
 
         # Build random initial connections
         for i in range(size-1):

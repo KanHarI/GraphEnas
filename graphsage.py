@@ -9,15 +9,6 @@ import copy
 import math
 
 
-LN_2 = math.log(2)
-def activation(tensor):
-    # A modified softplus that admits a d(activation)/dt (t=0) = 1
-    # and activation(0) = 0.
-    # An activation of relu is irrelevant in this case as frequent
-    # architecture changes causes lots of dead neurons...
-    return torch.log(1 + torch.exp(-2*torch.abs(tensor))) + F.relu(2*tensor) - LN_2
-
-
 class GraphSageLayer(nn.Module):
     def __init__(self, input_dim, output_dim, representation_size):
         # input_dim: size of vector representation of incoming nodes
@@ -64,15 +55,75 @@ class GraphSageLayer(nn.Module):
         conn = F.normalize(nodes_adj[1], dim=1)
         dst_representation = torch.einsum('bjv,bji->biv', (dst_representation, conn))
 
-        
-        # src_representation = F.relu(src_representation)
-        # node_id_rep = F.relu(self.node_self_rep(nodes_adj[0]))
         node_id_rep = self.node_self_rep(nodes_adj[0])
-        # dst_representation = F.relu(dst_representation)
 
         update_src = torch.cat((src_representation, node_id_rep, dst_representation), dim=2)
-        res = activation(self.node_update(update_src))
-        return res
+        res = F.relu(self.node_update(update_src))
+        return (res, nodes_adj[1])
+
+
+class GraphPoolLayer(nn.Module)
+    # A max pool layer of a graph
+    # Clusters every pair of succeeding nodes in the representation togather
+    # ASSUMES MEANINGFULL NODE ORDER, AND DAG.
+    def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self._1x1conv = nn.Linear(input_dim, output_dim)
+        self.nodes_pool = nn.MaxPool1d(2, ceil_mode=True)
+        self.adj_pool = nn.MaxPool2d(2, ceil_mode=True)
+
+    def cuda():
+        self._1x1conv = self._1x1conv.cuda()
+        self.nodes_pool = self.nodes_pool.cuda()
+        self.adj_pool = self.adj_pool.cuda()
+        return self
+
+    def forward(self, nodes_adj):
+        nodes = self._1x1conv(nodes_adj[0])
+        nodes = self.nodes_pool(nodes.transpose(1,2)).transpose(1,2)
+        adj = torch.stack((nodes_adj[1],), 1)
+        adj = self.adj_pool(adj)[:,0,:,:]
+        return (nodes, adj)
+
+
+class BiPyramid(nn.Module):
+    # This is a graph network with skip connections and 2 outputs:
+    # One vector and one per graph node
+    # (This assumes there are enough layers of pooling to reach a single vector)
+    # Input
+    # | \
+    # |  L1
+    # |  | \
+    # |  |  L2
+    # |  |  | \
+    # |  |  | Maxpool
+    # |  |  |  | \
+    # |  |  |  |  L3
+    # |  |  |  |  | \
+    # |  |  |  |  |  L4
+    # |  |  |  |  | /|
+    # |  |  |  |  L5 \
+    # |  |  |  | /  \ \
+    # |  |  | Unpool| |
+    # |  |  | /|    / /
+    # |  |  L6 |   / /
+    # |  | /|  |  /  |
+    # |  L7 |  |  |  |
+    # | /|  |  |  |  |
+    # L8 |  |  |  |  |
+    # | \|  |  |  |  |
+    # |  L9 |  |  |  |
+    # |    \|  |  |  |
+    # |     L10|  |  |
+    # |       \|  |  |
+    # |    Maxpool|  |
+    # |          \|  |
+    # |           L12|
+    # |             \|
+    # |              L13
+    # |               |
+    # O1              O2
+    def __init__(self, )
 
 
 class PyramidGraphSage(nn.Module):
@@ -161,4 +212,5 @@ class PyramidGraphSage(nn.Module):
                 fpass_graph = torch.cat((fpass_graph, stashed_results[self.num_layers-i], stashed_results[self.num_layers-i-1]), dim=2)
             fpass_graph = self.layers[i]((fpass_graph, adj))
         return fpass_graph
+
 
