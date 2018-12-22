@@ -93,7 +93,6 @@ class Supermodel(nn.Module):
     def cuda(self):
         self.actor_graphsage = self.actor_graphsage.cuda()
         self.node_processor = self.node_processor.cuda()
-        self.critic_graphsage = self.critic_graphsage.cuda()
         self.pair_selector = self.pair_selector.cuda()
         return self
 
