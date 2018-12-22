@@ -100,10 +100,19 @@ class Supermodel(nn.Module):
         return Submodel(submodel_size, channels, self, layers_between_halvings, output_dim, inp_channels)
 
 
-class SavedAction:
-    def __init__(self, t_reward, est_reward):
-        self.t_reward = t_reward
-        self.est_reward = est_reward
+class ExplorationExploitationSoftmax(nn.Module):
+    def __init__(self, init_expt):
+        super().__init__()
+        self.softmax = nn.Softmax(0)
+        self.expt = torch.tensor(init_expt, dtype=torch.float)
+
+    def cuda(self):
+        self.softmax = self.softmax.cuda()
+        self.expt = self.expt.cuda()
+        return self
+
+    def forward(self, inp):
+        return self.softmax(self.expt * inp)
 
 
 class Submodel(nn.Module):
@@ -115,7 +124,7 @@ class Submodel(nn.Module):
         self.layers_between_halvings = layers_between_halvings
         self.supergraph = sg.Supergraph(size, channels, self.supermodel.activations_list, layers_between_halvings, inp_channels)
         self.adj_matrix = torch.zeros(size, size)
-        self.softmax = nn.Softmax(0)
+        self.softmax = nn.ExplorationExploitationSoftmax(0)
         self.saved_pred = []
 
         # Build random initial connections

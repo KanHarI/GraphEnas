@@ -72,7 +72,7 @@ class GraphPoolLayer(nn.Module):
         self.nodes_pool = nn.MaxPool1d(size_factor, ceil_mode=True)
         self.adj_pool = nn.MaxPool2d(size_factor, ceil_mode=True)
 
-    def cuda():
+    def cuda(self):
         self._1x1conv = self._1x1conv.cuda()
         self.nodes_pool = self.nodes_pool.cuda()
         self.adj_pool = self.adj_pool.cuda()
@@ -87,7 +87,18 @@ class GraphPoolLayer(nn.Module):
 
 
 class GraphUnpoolLayer(nn.Module):
-    pass
+    def __init__(self, size_factor, input_dim, output_dim, output_padding=0):
+        self.nodes_unpool = nn.ConvTransposed1d(input_dim, output_dim, 1, size_factor, output_padding=output_padding)
+
+    def cuda(self):
+        self.nodes_unpool = self.nodes_unpool.cuda()
+        return self
+
+    def forward(self, nodes_adj):
+        nodes = nodes_adj[0]
+        nodes = self.nodes_unpool(nodes.transpose(1,2)).transpose(1,2)
+        return (nodes, None) # Cannot reconstruct adj. matrix
+
 
 class BiPyramid(nn.Module):
     # This is a graph network with skip connections and 2 outputs:
@@ -126,8 +137,33 @@ class BiPyramid(nn.Module):
     # |              L13
     # |               |
     # O1              O2
-    def __init__(self, num_layers, pools, channels, input_dim, o1_dim, o2_dim):
+    # The input graph must have a (power of 2) number of nodes
+    def __init__(self, layers_per_dim, num_halvings, channels, input_dim, o1_dim, o2_dim):
         super().__init__()
+        self.layers_1 = []
+        self.layers_2 = []
+        self.layers_3 = []
+        # Build up ladder
+        for i in range(num_halvings+1):
+            _channels = channels*(2**i)
+            for j in range(layers_per_dim):
+                self.layers_1.append(GraphSageLayer(_channels, _channels, _channels))
+            if i < num_halvings:
+                self.layers_1.append(GraphPoolLayer(2, _channels, _channels*2))
+        # Build down ladder
+        for i in range(num_halvings+1):
+            _channels = channels*(2**(num_halvings-i))
+            if i > 0:
+                self.layers_2.append(GraphUnpoolLayer(2, 2*_channels*2, _channels))
+            for j in range(layers_per_dim):
+                self.layers_2.append(GraphSageLayer(2*_channels, _channels, _channels))
+        # Build 2nd up ladder
+        for i in range(num_halvings+1):
+            _channels = channels*(2**i)
+            for j in range(layers_per_dim):
+                self.layers_2.append(GraphSageLayer(3*_channels, _channels, _channels))
+            if i < num_halvings:
+                self.layers_2.append(GraphPoolLayer(2, 3*_channels, _channels*2))
 
 
 
