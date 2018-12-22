@@ -86,6 +86,9 @@ class GraphPoolLayer(nn.Module)
         return (nodes, adj)
 
 
+class 
+
+
 class BiPyramid(nn.Module):
     # This is a graph network with skip connections and 2 outputs:
     # One vector and one per graph node
@@ -111,9 +114,9 @@ class BiPyramid(nn.Module):
     # |  L7 |  |  |  |
     # | /|  |  |  |  |
     # L8 |  |  |  |  |
-    # | \|  |  |  |  |
-    # |  L9 |  |  |  |
-    # |    \|  |  |  |
+    # / \|  |  |  |  |
+    #|I->L9 |  |  |  | <- The graph is modified here
+    # \    \|  |  |  |
     # |     L10|  |  |
     # |       \|  |  |
     # |    Maxpool|  |
@@ -123,7 +126,10 @@ class BiPyramid(nn.Module):
     # |              L13
     # |               |
     # O1              O2
-    def __init__(self, )
+    def __init__(self, num_layers, pools, channels, input_dim, o1_dim, o2_dim):
+        super().__init__()
+        
+
 
 
 class PyramidGraphSage(nn.Module):
@@ -210,7 +216,7 @@ class PyramidGraphSage(nn.Module):
             else:
                 # Concatenate skip connection inputs for pyramid "downward slope"
                 fpass_graph = torch.cat((fpass_graph, stashed_results[self.num_layers-i], stashed_results[self.num_layers-i-1]), dim=2)
-            fpass_graph = self.layers[i]((fpass_graph, adj))
+            fpass_graph = self.layers[i]((fpass_graph, adj))[0]
         return fpass_graph
 
 
