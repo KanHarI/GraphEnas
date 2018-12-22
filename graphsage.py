@@ -62,15 +62,15 @@ class GraphSageLayer(nn.Module):
         return (res, nodes_adj[1])
 
 
-class GraphPoolLayer(nn.Module)
+class GraphPoolLayer(nn.Module):
     # A max pool layer of a graph
     # Clusters every pair of succeeding nodes in the representation togather
     # ASSUMES MEANINGFULL NODE ORDER, AND DAG.
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, size_factor, input_dim, output_dim):
         super().__init__()
         self._1x1conv = nn.Linear(input_dim, output_dim)
-        self.nodes_pool = nn.MaxPool1d(2, ceil_mode=True)
-        self.adj_pool = nn.MaxPool2d(2, ceil_mode=True)
+        self.nodes_pool = nn.MaxPool1d(size_factor, ceil_mode=True)
+        self.adj_pool = nn.MaxPool2d(size_factor, ceil_mode=True)
 
     def cuda():
         self._1x1conv = self._1x1conv.cuda()
@@ -86,8 +86,8 @@ class GraphPoolLayer(nn.Module)
         return (nodes, adj)
 
 
-class 
-
+class GraphUnpoolLayer(nn.Module):
+    pass
 
 class BiPyramid(nn.Module):
     # This is a graph network with skip connections and 2 outputs:
@@ -128,7 +128,7 @@ class BiPyramid(nn.Module):
     # O1              O2
     def __init__(self, num_layers, pools, channels, input_dim, o1_dim, o2_dim):
         super().__init__()
-        
+
 
 
 
