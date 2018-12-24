@@ -86,6 +86,7 @@ class GraphPoolLayer(nn.Module):
 
 class GraphUnpoolLayer(nn.Module):
     def __init__(self, size_factor, input_dim, output_dim):
+        super().__init__()
         self.nodes_unpool = nn.ConvTranspose1d(input_dim, output_dim, size_factor, size_factor)
 
     def cuda(self):
