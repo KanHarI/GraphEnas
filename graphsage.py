@@ -198,7 +198,7 @@ class BiPyramid(nn.Module):
         # Upstream
         for i,l in enumerate(self.layers_2):
             adj = self.stash.get(-1-i)[1]
-            nodes = nodes_adj[0] + self.links_12[i](self.stash.get(-1-i)[0])
+            nodes = nodes_adj[0][:,:adj.shape[1],:] + self.links_12[i](self.stash.get(-1-i)[0])
             nodes = nodes[:,:adj.shape[1],:]
             nodes_adj = (nodes, adj)
             nodes_adj = l(nodes_adj)
