@@ -194,7 +194,7 @@ class Submodel(nn.Module):
 
         _adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
-        _nodes = self.node_preprocessor(_nodes)
+        _nodes = self.supermodel.node_preprocessor(_nodes)
 
         graphsage_res = self.supermodel.actor_critic_graphsage((_nodes, _adj_matrix))[0]
 
