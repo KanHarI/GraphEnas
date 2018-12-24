@@ -46,8 +46,6 @@ class GraphSageLayer(nn.Module):
 
         src_representation = self.src_representation(nodes_adj[0])
         conn = F.normalize(nodes_adj[1], dim=2)
-        print("src_representation.shape", src_representation.shape)
-        print("conn.shape", conn.shape)
         src_representation = torch.einsum('bjv,bij->biv', (src_representation, conn))
 
 
@@ -200,6 +198,7 @@ class BiPyramid(nn.Module):
         # Upstream
         for i,l in enumerate(self.layers_2):
             adj = self.stash.get(-1-i)[1]
+            print(i)
             nodes = nodes_adj[0] + self.links_12[i](self.stash.get(-1-i)[0])
             nodes = nodes[:,:adj.shape[1],:]
             nodes_adj = (nodes, adj)
