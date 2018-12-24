@@ -199,7 +199,7 @@ class BiPyramid(nn.Module):
         for i,l in enumerate(self.layers_2):
             adj = self.stash.get(-1-i)[1]
             print("i", i)
-            print("self.links_12.len", self.links_12.len)
+            print("len(self.links_12)", len(self.links_12))
             nodes = nodes_adj[0] + self.links_12[i](self.stash.get(-1-i)[0])
             nodes = nodes[:,:adj.shape[1],:]
             nodes_adj = (nodes, adj)
