@@ -176,6 +176,7 @@ class BiPyramid(nn.Module):
                 self.links_23.append(nn.Linear(_channels, _channels))
                 self.layers_3.append(GraphPoolLayer(2, _channels, _channels*2))
         
+        self.inp_size = []
         self.stash = None
 
     def cuda(self):
@@ -194,6 +195,7 @@ class BiPyramid(nn.Module):
         for l in self.layers_1:
             nodes_adj = l(nodes_adj)
             self.stash.push_back(nodes_adj)
+            self.inp_size[]
 
         # Upstream
         for i,l in enumerate(self.layers_2):
@@ -211,7 +213,7 @@ class BiPyramid(nn.Module):
         # Downstream
         for i,l in enumerate(self.layers_2):
             adj = nodes_adj[1]
-            nodes = nodes_adj[0] + self.links_13[i](self.stash.get(-1-i)) + self.links_23[i](self.stash.get(i))
+            nodes = nodes_adj[0] + self.links_13[i](self.stash.get(-1-i)) + self.links_23[i](self.stash.get(i))[:,:adj.shape[1],:]
             nodes_adj = (nodes, adj)
             nodes_adj = l(nodes_adj)
 

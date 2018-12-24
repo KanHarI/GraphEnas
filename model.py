@@ -59,6 +59,12 @@ PAIR_SELECTOR_SIZE_2 = 100
 PAIR_SELECTOR_SIZE_3 = 50
 PAIR_SELECTOR_SIZE_4 = 10
 
+CRITIC_SIZE_0 = 1000
+CRITIC_SIZE_1 = 100
+CRITIC_SIZE_2 = 10
+CRITIC_OUTPUT_SIZE = 2
+
+
 class Supermodel(nn.Module):
     def __init__(self, activations_list=ACTIVATIONS, max_size=SUPERGRAPH_MAX_SIZE, max_halvings=MAX_HALVINGS):
         super().__init__()
@@ -95,11 +101,21 @@ class Supermodel(nn.Module):
             nn.Linear(PAIR_SELECTOR_SIZE_4, 2)
             )
 
+        self.critic = nn.Sequential(
+            nn.Linear(GRAPHSAGE_CHANNELS*(2**GRAPHSAGE_NUM_HALVINGS), CRITIC_SIZE_0),
+            nn.ReLU(),
+            nn.Linear(CRITIC_SIZE_0, CRITIC_SIZE_1),
+            nn.ReLU(),
+            nn.Linear(CRITIC_SIZE_1, CRITIC_SIZE_2),
+            nn.ReLU(),
+            nn.Linear(CRITIC_SIZE_2, CRITIC_OUTPUT_SIZE))
+
     def cuda(self):
         self.actor_critic_graphsage = self.actor_critic_graphsage.cuda()
         self.node_preprocessor = self.node_preprocessor.cuda()
         self.node_processor = self.node_processor.cuda()
         self.pair_selector = self.pair_selector.cuda()
+        self.critic = self.critic.cuda()
         return self
 
     def create_submodel(self, submodel_size, layers_between_halvings, output_dim, channels=SUBMODEL_CHANNELS, inp_channels=IMAGE_CHANNELS):
@@ -237,8 +253,22 @@ class Submodel(nn.Module):
             self.adj_matrix[src, dst] = selected_edge_conn
             action_log_prob = edge_processor_out.log_prob(selected_edge_conn)
 
-        # print(action_log_prob)
-        #raise NotImplementedError()
+        adj_matrix = torch.stack([self.adj_matrix])
+        _nodes = torch.stack([nodes])
+        _nodes = self.supermodel.node_preprocessor(_nodes)
+
+        critic_res = torch.exp(self.supermodel.actor_critic_graphsage.f2((_nodes, _adj_matrix)))
+        critic_mean = critic_res[0,0]
+        critic_std = critic_res[0,1]
+
+        nograd_critic_mean = torch.tensor(critic_mean.item())
+
+        if torch.cuda.is_available():
+            nograd_critic_mean = nograd_critic_mean.cuda()
+
+        actor_loss = action_log_prob * nograd_critic_mean
+
+        return actor_loss, critic_mean, critic_std
 
 
     def forward(self, inp):
