@@ -196,7 +196,7 @@ class Submodel(nn.Module):
         _nodes = torch.stack([nodes])
         _nodes = self.supermodel.node_preprocessor(_nodes)
 
-        graphsage_res = self.supermodel.actor_critic_graphsage((_nodes, _adj_matrix))[0]
+        graphsage_res = self.supermodel.actor_critic_graphsage((_nodes, _adj_matrix))[0][0]
 
         update_nodes = random.randint(0,1)
         action_log_prob = None
