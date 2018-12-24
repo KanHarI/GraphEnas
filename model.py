@@ -51,6 +51,8 @@ GRAPHSAGE_NUM_HALVINGS = math.ceil(math.log2(SUPERGRAPH_MAX_SIZE))
 SUBMODEL_CHANNELS = 10
 IMAGE_CHANNELS = 3
 
+NODE_PREPROCESS_SIZE = 200
+
 PAIR_SELECTOR_SIZE_0 = 200
 PAIR_SELECTOR_SIZE_1 = 200
 PAIR_SELECTOR_SIZE_2 = 100
@@ -71,6 +73,10 @@ class Supermodel(nn.Module):
         
         # +1 for priority, + max_halvings for amount of dimensional halvings
         node_output_feature_sizes = len(activations_list)
+        self.node_preprocessor = nn.Sequential(
+            nn.Linear(self.input_feature_sizes, NODE_PREPROCESS_SIZE),
+            nn.ReLU(),
+            nn.Linear(NODE_PREPROCESS_SIZE, GRAPHSAGE_CHANNELS))
         self.node_processor = nn.Linear(self.input_feature_sizes + GRAPHSAGE_CHANNELS, node_output_feature_sizes)
 
         # inputs: +current distance, +1 for current connectedness
@@ -91,6 +97,7 @@ class Supermodel(nn.Module):
 
     def cuda(self):
         self.actor_critic_graphsage = self.actor_critic_graphsage.cuda()
+        self.node_preprocessor = self.node_preprocessor.cuda()
         self.node_processor = self.node_processor.cuda()
         self.pair_selector = self.pair_selector.cuda()
         return self
@@ -187,6 +194,7 @@ class Submodel(nn.Module):
 
         _adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
+        _nodes = self.node_preprocessor(_nodes)
 
         graphsage_res = self.supermodel.actor_critic_graphsage((_nodes, _adj_matrix))[0]
 
