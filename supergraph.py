@@ -6,6 +6,15 @@ import torch.nn.functional as F
 import math
 
 
+LN_2 = math.log(2)
+def activation(tensor):
+    # A modified softplus that admits a d(activation)/dt (t=0) = 1
+    # and activation(0) = 0.
+    # An activation of relu is irrelevant in this case as frequent
+    # architecture changes causes lots of dead neurons...
+    return torch.log(1 + torch.exp(-2*torch.abs(tensor))) + F.relu(2*tensor) - LN_2
+
+
 class Supergraph(nn.Module):
     def __init__(self, sgraph_size, channels_count, activations_list, layers_between_halvings, inp_channels):
         super().__init__()
@@ -47,15 +56,6 @@ class Supergraph(nn.Module):
 
     def create_subgraph(self, chosen_activations, adj):
         return Subgraph(self, chosen_activations, adj)
-
-
-LN_2 = math.log(2)
-def activation(tensor):
-    # A modified softplus that admits a d(activation)/dt (t=0) = 1
-    # and activation(0) = 0.
-    # An activation of relu is irrelevant in this case as frequent
-    # architecture changes causes lots of dead neurons...
-    return torch.log(1 + torch.exp(-2*torch.abs(tensor))) + F.relu(2*tensor) - LN_2
 
 
 class Subgraph(nn.Module):

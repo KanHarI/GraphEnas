@@ -41,9 +41,12 @@ def maxpool7(*_):
 
 ACTIVATIONS = [conv3, conv5, dep_conv5, dep_conv7, diaconv3_2, diaconv5_2, maxpool3, maxpool5, maxpool7]
 
+SUPERGRAPH_MAX_SIZE = 64
+MAX_HALVINGS = 8
 
-GRAPHSAGE_LAYERS = 10
-GRAPHSAGE_REPRESENTATION_SIZE = 60
+GRAPHSAGE_LAYER_PER_DIM = 3
+GRAPHSAGE_CHANNELS = 60
+GRAPHSAGE_NUM_HALVINGS = math.ceil(math.log2(SUPERGRAPH_MAX_SIZE))
 
 SUBMODEL_CHANNELS = 10
 IMAGE_CHANNELS = 3
@@ -55,7 +58,7 @@ PAIR_SELECTOR_SIZE_3 = 50
 PAIR_SELECTOR_SIZE_4 = 10
 
 class Supermodel(nn.Module):
-    def __init__(self, graphsage_conv_layers=GRAPHSAGE_LAYERS, activations_list=ACTIVATIONS, max_size=256, max_halvings=8):
+    def __init__(self, graphsage_conv_layers=GRAPHSAGE_LAYERS, activations_list=ACTIVATIONS, max_size=SUPERGRAPH_MAX_SIZE, max_halvings=MAX_HALVINGS):
         super().__init__()
         self.max_size = max_size
         self.max_halvings = max_halvings
@@ -63,11 +66,8 @@ class Supermodel(nn.Module):
         self.activations_list = activations_list
         # +2 for input, output nodes
         self.input_feature_sizes = 2 + len(activations_list) + self.log2_max_size*2 + max_halvings*2
-        self.actor_graphsage = gs.PyramidGraphSage(
-            graphsage_conv_layers,
-            [self.input_feature_sizes] + [GRAPHSAGE_REPRESENTATION_SIZE] * graphsage_conv_layers,
-            [GRAPHSAGE_REPRESENTATION_SIZE] * graphsage_conv_layers)
-        self.critic = None
+
+        self.actor_critic_graphsage = gs.BiPyramid(GRAPHSAGE_LAYER_PER_DIM, GRAPHSAGE_NUM_HALVINGS, GRAPHSAGE_CHANNELS)
         
         # +1 for priority, + max_halvings for amount of dimensional halvings
         node_output_feature_sizes = len(activations_list)
@@ -91,7 +91,7 @@ class Supermodel(nn.Module):
         #nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
 
     def cuda(self):
-        self.actor_graphsage = self.actor_graphsage.cuda()
+        self.actor_critic_graphsage = self.actor_critic_graphsage.cuda()
         self.node_processor = self.node_processor.cuda()
         self.pair_selector = self.pair_selector.cuda()
         return self
@@ -189,7 +189,7 @@ class Submodel(nn.Module):
         _adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
 
-        graphsage_res = self.supermodel.actor_graphsage((_nodes, _adj_matrix))[0]
+        graphsage_res = self.supermodel.actor_critic_graphsage((_nodes, _adj_matrix))[0]
 
         update_nodes = random.randint(0,1)
         action_log_prob = None

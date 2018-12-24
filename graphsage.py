@@ -8,6 +8,7 @@ import random
 import copy
 import math
 
+import biqueue
 
 class GraphSageLayer(nn.Module):
     def __init__(self, input_dim, output_dim, representation_size):
@@ -39,13 +40,10 @@ class GraphSageLayer(nn.Module):
         return self
 
     def forward(self, nodes_adj):
-        # graph_nodes_batch: (batch, node, vector)
-        # graph_adj_batch: (batch, node^2)
-        # graph_adj_batch is a directional adjacency matrix, can accept non-binary inputs
+        # nodes_adj[0]: (batch, node, vector)
+        # nodes_adj[1]: (batch, node^2)
+        # nodes_adj[1] is a directional adjacency matrix, can accept non-binary inputs
 
-        # Aggregation may replaced by smarter aggregation in the future.
-        # For now it is sum for simplicity and efficiency.
-        
         src_representation = self.src_representation(nodes_adj[0])
         conn = F.normalize(nodes_adj[1], dim=2)
         src_representation = torch.einsum('bjv,bij->biv', (src_representation, conn))
@@ -58,7 +56,7 @@ class GraphSageLayer(nn.Module):
         node_id_rep = self.node_self_rep(nodes_adj[0])
 
         update_src = torch.cat((src_representation, node_id_rep, dst_representation), dim=2)
-        res = F.relu(self.node_update(update_src))
+        res = F.tanh(self.node_update(update_src))
         return (res, nodes_adj[1])
 
 
@@ -87,8 +85,8 @@ class GraphPoolLayer(nn.Module):
 
 
 class GraphUnpoolLayer(nn.Module):
-    def __init__(self, size_factor, input_dim, output_dim, output_padding=0):
-        self.nodes_unpool = nn.ConvTransposed1d(input_dim, output_dim, 1, size_factor, output_padding=output_padding)
+    def __init__(self, size_factor, input_dim, output_dim):
+        self.nodes_unpool = nn.ConvTransposed1d(input_dim, output_dim, size_factor, size_factor)
 
     def cuda(self):
         self.nodes_unpool = self.nodes_unpool.cuda()
@@ -104,7 +102,10 @@ class BiPyramid(nn.Module):
     # This is a graph network with skip connections and 2 outputs:
     # One vector and one per graph node
     # (This assumes there are enough layers of pooling to reach a single vector)
+    #
     # Input
+    # |
+    # L0
     # | \
     # |  L1
     # |  | \
@@ -125,9 +126,9 @@ class BiPyramid(nn.Module):
     # |  L7 |  |  |  |
     # | /|  |  |  |  |
     # L8 |  |  |  |  |
-    # / \|  |  |  |  |
-    #|I->L9 |  |  |  | <- The graph is modified here
-    # \    \|  |  |  |
+    # | \|  |  |  |  |
+    # | *L9 |  |  |  | <- The graph is modified at the input here
+    # |    \|  |  |  |
     # |     L10|  |  |
     # |       \|  |  |
     # |    Maxpool|  |
@@ -137,35 +138,82 @@ class BiPyramid(nn.Module):
     # |              L13
     # |               |
     # O1              O2
-    # The input graph must have a (power of 2) number of nodes
-    def __init__(self, layers_per_dim, num_halvings, channels, input_dim, o1_dim, o2_dim):
+    #
+    def __init__(self, layers_per_dim, num_halvings, channels):
         super().__init__()
         self.layers_1 = []
         self.layers_2 = []
         self.layers_3 = []
-        # Build up ladder
+        self.links_12 = []
+        self.links_13 = []
+        self.links_23 = []
+        # Build downstream ladder
         for i in range(num_halvings+1):
             _channels = channels*(2**i)
             for j in range(layers_per_dim):
                 self.layers_1.append(GraphSageLayer(_channels, _channels, _channels))
             if i < num_halvings:
                 self.layers_1.append(GraphPoolLayer(2, _channels, _channels*2))
-        # Build down ladder
+        # Build upstream ladder
         for i in range(num_halvings+1):
             _channels = channels*(2**(num_halvings-i))
             if i > 0:
-                self.layers_2.append(GraphUnpoolLayer(2, 2*_channels*2, _channels))
+                self.links_12.append(nn.Linear(2*_channels, 2*_channels))
+                self.layers_2.append(GraphUnpoolLayer(2, 2*_channels, _channels, output_padding=1))
             for j in range(layers_per_dim):
-                self.layers_2.append(GraphSageLayer(2*_channels, _channels, _channels))
-        # Build 2nd up ladder
+                self.links_12.append(nn.Linear(_channels, _channels))
+                self.layers_2.append(GraphSageLayer(_channels, _channels, _channels))
+        # Build 2nd downstream ladder
         for i in range(num_halvings+1):
             _channels = channels*(2**i)
             for j in range(layers_per_dim):
-                self.layers_2.append(GraphSageLayer(3*_channels, _channels, _channels))
+                self.links_13.append(nn.Linear(_channels, _channels))
+                self.links_23.append(nn.Linear(_channels, _channels))
+                self.layers_2.append(GraphSageLayer(_channels, _channels, _channels))
             if i < num_halvings:
-                self.layers_2.append(GraphPoolLayer(2, 3*_channels, _channels*2))
+                self.links_13.append(nn.Linear(_channels, _channels))
+                self.links_23.append(nn.Linear(_channels, _channels))
+                self.layers_2.append(GraphPoolLayer(2, _channels, _channels*2))
+        
+        self.stash = None
+
+    def cuda(self):
+        self.layers_1 = list(map(lambda x: x.cuda(), self.layers_1))
+        self.layers_2 = list(map(lambda x: x.cuda(), self.layers_2))
+        self.layers_3 = list(map(lambda x: x.cuda(), self.layers_3))
+        self.links_12 = list(map(lambda x: x.cuda(), self.links_12))
+        self.links_13 = list(map(lambda x: x.cuda(), self.links_13))
+        self.links_23 = list(map(lambda x: x.cuda(), self.links_23))
+        return self
 
 
+    def forward(self, nodes_adj):
+        self.stash = biqueue.Biqueue()
+        # Downstream
+        for l in self.layers_1:
+            nodes_adj = l(nodes_adj)
+            self.stash.push_back(nodes_adj)
+
+        # Upstream
+        for i,l in enumerate(self.layers_2):
+            adj = self.stash.get(-1-i)[1]
+            nodes = nodes_adj[0] + self.links_12[i](self.stash.get(-1-i)[0])
+            nodes_adj = (nodes, adj)
+            nodes_adj = l(nodes_adj)
+            self.stash.push_front(nodes_adj)
+
+        return nodes_adj
+
+    # This function is seperated from "forward" to allow modifying the computational graph
+    def f2(self, nodes_adj):
+        # Downstream
+        for i,l in enumerate(self.layers_2):
+            adj = nodes_adj[1]
+            nodes = nodes_adj[0] + self.links_13[i](self.stash.get(-1-i)) + self.links_23[i](self.stash.get(i))
+            nodes_adj = (nodes, adj)
+            nodes_adj = l(nodes_adj)
+
+        return nodes_adj[0].mean(1)
 
 
 class PyramidGraphSage(nn.Module):

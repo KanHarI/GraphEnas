@@ -41,8 +41,8 @@ supermodel = model.Supermodel()
 if torch.cuda.is_available():
     supermodel = supermodel.cuda()
 
-SUBMODEL_LAYERS = 10
-LAYERS_BETWEEN_HALVINGS = 4
+SUBMODEL_LAYERS = 16
+LAYERS_BETWEEN_HALVINGS = 5
 OUTPUT_DIM = 10
 SUBMODEL_CHANNELS = 10
 
