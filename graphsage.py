@@ -170,18 +170,11 @@ class BiPyramid(nn.Module):
             for j in range(layers_per_dim):
                 self.links_13.append(nn.Linear(_channels, _channels))
                 self.links_23.append(nn.Linear(_channels, _channels))
-                self.layers_2.append(GraphSageLayer(_channels, _channels, _channels))
+                self.layers_3.append(GraphSageLayer(_channels, _channels, _channels))
             if i < num_halvings:
                 self.links_13.append(nn.Linear(_channels, _channels))
                 self.links_23.append(nn.Linear(_channels, _channels))
-                self.layers_2.append(GraphPoolLayer(2, _channels, _channels*2))
-
-            print("len(self.layers_1)", len(self.layers_1))
-            print("len(self.layers_2)", len(self.layers_2))
-            print("len(self.layers_3)", len(self.layers_3))
-            print("len(self.links_12)", len(self.links_12))
-            print("len(self.links_13)", len(self.links_13))
-            print("len(self.links_23)", len(self.links_23))
+                self.layers_3.append(GraphPoolLayer(2, _channels, _channels*2))
         
         self.stash = None
 
@@ -205,8 +198,6 @@ class BiPyramid(nn.Module):
         # Upstream
         for i,l in enumerate(self.layers_2):
             adj = self.stash.get(-1-i)[1]
-            print("i", i)
-            print("len(self.links_12)", len(self.links_12))
             nodes = nodes_adj[0] + self.links_12[i](self.stash.get(-1-i)[0])
             nodes = nodes[:,:adj.shape[1],:]
             nodes_adj = (nodes, adj)
