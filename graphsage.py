@@ -175,6 +175,13 @@ class BiPyramid(nn.Module):
                 self.links_13.append(nn.Linear(_channels, _channels))
                 self.links_23.append(nn.Linear(_channels, _channels))
                 self.layers_2.append(GraphPoolLayer(2, _channels, _channels*2))
+
+            print("len(self.layers_1)", len(self.layers_1))
+            print("len(self.layers_2)", len(self.layers_2))
+            print("len(self.layers_3)", len(self.layers_3))
+            print("len(self.links_12)", len(self.links_12))
+            print("len(self.links_13)", len(self.links_13))
+            print("len(self.links_23)", len(self.links_23))
         
         self.stash = None
 
