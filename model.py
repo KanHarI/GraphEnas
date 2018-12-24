@@ -42,7 +42,7 @@ def maxpool7(*_):
 ACTIVATIONS = [conv3, conv5, dep_conv5, dep_conv7, diaconv3_2, diaconv5_2, maxpool3, maxpool5, maxpool7]
 
 SUPERGRAPH_MAX_SIZE = 64
-MAX_HALVINGS = 4
+MAX_HALVINGS = 8
 
 GRAPHSAGE_LAYER_PER_DIM = 3
 GRAPHSAGE_CHANNELS = 60
