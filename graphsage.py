@@ -46,6 +46,8 @@ class GraphSageLayer(nn.Module):
 
         src_representation = self.src_representation(nodes_adj[0])
         conn = F.normalize(nodes_adj[1], dim=2)
+        print("src_representation.shape", src_representation.shape)
+        print("conn.shape", conn.shape)
         src_representation = torch.einsum('bjv,bij->biv', (src_representation, conn))
 
 
@@ -56,7 +58,7 @@ class GraphSageLayer(nn.Module):
         node_id_rep = self.node_self_rep(nodes_adj[0])
 
         update_src = torch.cat((src_representation, node_id_rep, dst_representation), dim=2)
-        res = F.tanh(self.node_update(update_src))
+        res = torch.tanh(self.node_update(update_src))
         return (res, nodes_adj[1])
 
 
