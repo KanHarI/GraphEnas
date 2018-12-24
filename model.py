@@ -71,12 +71,12 @@ class Supermodel(nn.Module):
         
         # +1 for priority, + max_halvings for amount of dimensional halvings
         node_output_feature_sizes = len(activations_list)
-        self.node_processor = nn.Linear(self.input_feature_sizes + GRAPHSAGE_REPRESENTATION_SIZE, node_output_feature_sizes)
+        self.node_processor = nn.Linear(self.input_feature_sizes + GRAPHSAGE_CHANNELS, node_output_feature_sizes)
 
         # inputs: +current distance, +1 for current connectedness
         # outputs: priority, connectedeness [yes\no]
         self.pair_selector = nn.Sequential(
-            nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 1, PAIR_SELECTOR_SIZE_0),
+            nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_CHANNELS*2 + self.log2_max_size + 1, PAIR_SELECTOR_SIZE_0),
             nn.ReLU(),
             nn.Linear(PAIR_SELECTOR_SIZE_0, PAIR_SELECTOR_SIZE_1),
             nn.ReLU(),
@@ -88,7 +88,6 @@ class Supermodel(nn.Module):
             nn.ReLU(),
             nn.Linear(PAIR_SELECTOR_SIZE_4, 2)
             )
-        #nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_REPRESENTATION_SIZE*2 + self.log2_max_size + 2, 1 + 2)
 
     def cuda(self):
         self.actor_critic_graphsage = self.actor_critic_graphsage.cuda()
