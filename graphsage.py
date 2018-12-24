@@ -159,7 +159,7 @@ class BiPyramid(nn.Module):
             _channels = channels*(2**(num_halvings-i))
             if i > 0:
                 self.links_12.append(nn.Linear(2*_channels, 2*_channels))
-                self.layers_2.append(GraphUnpoolLayer(2, 2*_channels, _channels, output_padding=1))
+                self.layers_2.append(GraphUnpoolLayer(2, 2*_channels, _channels))
             for j in range(layers_per_dim):
                 self.links_12.append(nn.Linear(_channels, _channels))
                 self.layers_2.append(GraphSageLayer(_channels, _channels, _channels))
