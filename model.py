@@ -58,7 +58,7 @@ PAIR_SELECTOR_SIZE_3 = 50
 PAIR_SELECTOR_SIZE_4 = 10
 
 class Supermodel(nn.Module):
-    def __init__(self, graphsage_conv_layers=GRAPHSAGE_LAYERS, activations_list=ACTIVATIONS, max_size=SUPERGRAPH_MAX_SIZE, max_halvings=MAX_HALVINGS):
+    def __init__(self, activations_list=ACTIVATIONS, max_size=SUPERGRAPH_MAX_SIZE, max_halvings=MAX_HALVINGS):
         super().__init__()
         self.max_size = max_size
         self.max_halvings = max_halvings
