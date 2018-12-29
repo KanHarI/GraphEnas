@@ -112,6 +112,11 @@ for i in range(10000):
         labels = labels.cuda()
 
     outputs = sbm(inputs)
+    _, predicted = torch.max(outputs.data, 1)
+    total = labels.size(0)
+    correct = (predicted == labels).sum().item()
+    print('Accuracy of the network on the test batch images: %d %%' % (100 * correct / total))
+
     loss = criterion(outputs, labels)
     print("Arch loss:", loss)
     if last_loss is None:
