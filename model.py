@@ -146,7 +146,7 @@ class Submodel(nn.Module):
         self.layers_between_halvings = layers_between_halvings
         self.supergraph = sg.Supergraph(size, channels, self.supermodel.activations_list, layers_between_halvings, inp_channels)
         self.adj_matrix = torch.zeros(size, size)
-        self.softmax = ExplorationExploitationSoftmax(0)
+        self.softmax = ExplorationExploitationSoftmax(1)
         self.saved_pred = []
 
         # Build random initial connections
@@ -257,9 +257,9 @@ class Submodel(nn.Module):
         _nodes = torch.stack([nodes])
         _nodes = self.supermodel.node_preprocessor(_nodes)
 
-        critic_res = torch.exp(self.supermodel.actor_critic_graphsage.f2((_nodes, _adj_matrix)))
+        critic_res = self.supermodel.actor_critic_graphsage.f2((_nodes, _adj_matrix))
         critic_mean = critic_res[0,0]
-        critic_std = critic_res[0,1]
+        critic_std = torch.exp(critic_res[0,1])
 
         nograd_critic_mean = torch.tensor(critic_mean.item())
 
