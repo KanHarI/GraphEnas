@@ -93,8 +93,8 @@ def print_if_verbose(v, *args):
 
 for i in range(10000):
     verbose = (i%PRINT_FREQUENCY == 0)
-    if i == 1000:
-        # Start actor acting
+    if i == 200:
+        # Turn on actor
         sbm.softmax.expt += 1.0
     print_if_verbose(verbose, "\n\nStart iteration: ", i)
     actor_critic_optimizer.zero_grad()
