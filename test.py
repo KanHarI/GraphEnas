@@ -159,7 +159,7 @@ for i in range(10000):
         for loss in ground_truch_losses[::-1]:
             it *= GAMMA
             it += loss
-        loss = torch.tensor(loss)
+        loss = torch.tensor(it)
         if torch.cuda.is_available():
             loss = loss.cuda()
 
