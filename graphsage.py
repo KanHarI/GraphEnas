@@ -150,33 +150,32 @@ class BiPyramid(nn.Module):
         self.links_23 = []
         # Build downstream ladder
         for i in range(num_halvings+1):
-            _channels = channels*(2**i)
+            _channels = channels*(i+1)
             for j in range(layers_per_dim):
                 self.layers_1.append(GraphSageLayer(_channels, _channels, _channels))
             if i < num_halvings:
-                self.layers_1.append(GraphPoolLayer(2, _channels, _channels*2))
+                self.layers_1.append(GraphPoolLayer(2, _channels, _channels+channels))
         # Build upstream ladder
         for i in range(num_halvings+1):
-            _channels = channels*(2**(num_halvings-i))
+            _channels = channels*(num_halvings - i + 1)
             if i > 0:
-                self.links_12.append(nn.Linear(2*_channels, 2*_channels))
-                self.layers_2.append(GraphUnpoolLayer(2, 2*_channels, _channels))
+                self.links_12.append(nn.Linear(_channels + channels, _channels + channels))
+                self.layers_2.append(GraphUnpoolLayer(2, _channels+channels, _channels))
             for j in range(layers_per_dim):
                 self.links_12.append(nn.Linear(_channels, _channels))
                 self.layers_2.append(GraphSageLayer(_channels, _channels, _channels))
         # Build 2nd downstream ladder
         for i in range(num_halvings+1):
-            _channels = channels*(2**i)
+            _channels = channels*(i+1)
             for j in range(layers_per_dim):
                 self.links_13.append(nn.Linear(_channels, _channels))
                 self.links_23.append(nn.Linear(_channels, _channels))
                 self.layers_3.append(GraphSageLayer(_channels, _channels, _channels))
             if i < num_halvings:
-                self.links_13.append(nn.Linear(_channels, _channels))
+                self.links_13.append(nn.Linear(_channels + channels, _channels + channels))
                 self.links_23.append(nn.Linear(_channels, _channels))
-                self.layers_3.append(GraphPoolLayer(2, _channels, _channels*2))
+                self.layers_3.append(GraphPoolLayer(2, _channels, _channels + channels))
         
-        self.inp_size = []
         self.stash = None
 
     def cuda(self):
@@ -189,13 +188,12 @@ class BiPyramid(nn.Module):
         return self
 
 
-    def forward(self, nodes_adj):
+    def forwardA(self, nodes_adj):
         self.stash = biqueue.Biqueue()
         # Downstream
         for l in self.layers_1:
             nodes_adj = l(nodes_adj)
             self.stash.push_back(nodes_adj)
-            self.inp_size[]
 
         # Upstream
         for i,l in enumerate(self.layers_2):
@@ -209,14 +207,50 @@ class BiPyramid(nn.Module):
         return nodes_adj
 
     # This function is seperated from "forward" to allow modifying the computational graph
-    def f2(self, nodes_adj):
+    def forwardB(self, nodes_adj):
+        poi = len(self.stash.data)//2
         # Downstream
+        for i,l in enumerate(self.layers_3):
+            nodes, adj = nodes_adj
+            nodes += self.links_23[i](self.stash.get(i)[0])[:,:adj.shape[1],:]
+            nodes_adj = nodes, adj
+            nodes_adj = l(nodes_adj)
+            nodes, adj = nodes_adj
+            nodes += self.links_13[i](self.stash.get(poi+i)[0])
+            nodes_adj = (nodes, adj)
+
+        return nodes_adj[0].mean(1)
+
+    def forwardAB(self, na1, na2):
+        self.stash = biqueue.Biqueue()
+
+        nodes_adj = na1
+        # Downstream
+        for l in self.layers_1:
+            nodes_adj = l(nodes_adj)
+            self.stash.push_back(nodes_adj)
+
+        # Upstream
         for i,l in enumerate(self.layers_2):
-            adj = nodes_adj[1]
-            nodes = nodes_adj[0] + self.links_13[i](self.stash.get(-1-i)) + self.links_23[i](self.stash.get(i))[:,:adj.shape[1],:]
+            adj = self.stash.get(-1-i)[1]
+            nodes = nodes_adj[0][:,:adj.shape[1],:] + self.links_12[i](self.stash.get(-1-i)[0])
+            nodes = nodes[:,:adj.shape[1],:]
             nodes_adj = (nodes, adj)
             nodes_adj = l(nodes_adj)
+            self.stash.push_front(nodes_adj)
 
+        nodes_adj = na2
+        poi = len(self.stash.data)//2
+        # Downstream
+        for i,l in enumerate(self.layers_3):
+            nodes, adj = nodes_adj
+            nodes = self.links_23[i](self.stash.get(i)[0])[:,:adj.shape[1],:] + nodes
+            nodes_adj = nodes, adj
+            nodes_adj = l(nodes_adj)
+            nodes, adj = nodes_adj
+            nodes = nodes + self.links_13[i](self.stash.get(poi+i)[0])
+            nodes_adj = (nodes, adj)
+        
         return nodes_adj[0].mean(1)
 
 

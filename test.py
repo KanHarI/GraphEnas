@@ -2,6 +2,7 @@
 import model
 
 import torch
+import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
@@ -65,10 +66,10 @@ if torch.cuda.is_available():
     sbm = sbm.cuda()
 
 criterion = nn.CrossEntropyLoss()
-weights_optimizer = optim.SGD([sbm.subgraph.parameters(), sbm.final_classifier.parameters()], lr=0.001, momentum=0.9)
+weights_optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
 actor_critic_optimizer = optim.Adam(sbm.supermodel.parameters())
 
-PRINT_FREQUENCY = 100
+PRINT_FREQUENCY = 1
 
 
 weights_trainset = dataset_infigen(weights_trainset)
@@ -76,21 +77,33 @@ arch_trainset = dataset_infigen(arch_trainset)
 
 
 TRAIN_STEP_TIME = 1.0 # Seconds
-CRITIC_PLAN_LENGTH = 100
+CRITIC_PLAN_LENGTH = 10
 
 critic_preds = []
 ground_truch_losses = []
 
 last_loss = None
 
+GAUSSIAN_FACTOR = (2*math.pi)**(-0.5)
+GAMMA = (1.0 - 1.0/((1+CRITIC_PLAN_LENGTH)//2))
+
+def print_if_verbose(v, *args):
+    if v:
+        print(*args)
+
 for i in range(10000):
+    verbose = (i%PRINT_FREQUENCY == 0)
+    print_if_verbose(verbose, "\n\nStart iteration: ", i)
     actor_critic_optimizer.zero_grad()
-    actor_loss, critic_mean, critic_std = sbm.refresh_subgraph()
-    print("actor_loss: ", actor_loss.item())
-    critic_preds.append(critic_mean, critic_std)
+    actor_loss, na1, na2 = sbm.refresh_subgraph()
+    print_if_verbose(verbose, "actor_loss: ", actor_loss.item())
+    critic_preds.append((na1, na2))
+
+    train_iter = 0
 
     start_time = time.time()
     while (time.time() - start_time) < TRAIN_STEP_TIME:
+        train_iter += 1
         data = weights_trainset.__next__()
         inputs, labels = data
 
@@ -99,48 +112,79 @@ for i in range(10000):
             labels = labels.cuda()
             weights_optimizer.zero_grad()
 
+        outputs = sbm(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        weights_optimizer.step()
+
+    print_if_verbose(verbose, "weights train iterations:", train_iter)
+
+    with torch.no_grad():
+        correct = 0
+        total = 0
+
+        loss = 0.0
+
+        for i in range((train_iter//5) + 1):
+            data = arch_trainset.__next__()
+            inputs, labels = data
+        
+            if torch.cuda.is_available():
+                inputs = inputs.cuda()
+                labels = labels.cuda()
+        
             outputs = sbm(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            weights_optimizer.step()
+            _, predicted = torch.max(outputs.data, 1)
+            total = labels.size(0)
+            correct = (predicted == labels).sum().item()
+    
+            loss += criterion(outputs, labels)
+        loss = loss / ((train_iter//5) + 1)
 
-    data = arch_trainset.__next__()
-    inputs, labels = data
+        print_if_verbose(verbose, 'Accuracy of the network on the test batch images: %d %%' % (100 * correct / total))
+        print_if_verbose(verbose, "Arch loss:", loss.item())
 
-    if torch.cuda.is_available():
-        inputs = inputs.cuda()
-        labels = labels.cuda()
-
-    outputs = sbm(inputs)
-    _, predicted = torch.max(outputs.data, 1)
-    total = labels.size(0)
-    correct = (predicted == labels).sum().item()
-    print('Accuracy of the network on the test batch images: %d %%' % (100 * correct / total))
-
-    loss = criterion(outputs, labels)
-    print("Arch loss:", loss)
     if last_loss is None:
         last_loss = loss
     loss_delta = math.log(loss) - math.log(last_loss)
 
     ground_truch_losses.append(loss_delta)
     critic_loss = 0.0
-    if len(ground_truch_losses == CRITIC_PLAN_LENGTH):
+    if len(ground_truch_losses) == CRITIC_PLAN_LENGTH:
         it = 0.0
         for loss in ground_truch_losses[::-1]:
-            it *= (1.0 - 1.0/(CRITIC_PLAN_LENGTH//2))
+            it *= GAMMA
             it += loss
         loss = torch.tensor(loss)
         if torch.cuda.is_available():
             loss = loss.cuda()
 
         ground_truch_losses = ground_truch_losses[1:]
-        critic_mean, critic_std = critic_preds[0]
+        na1, na2 = critic_preds[0]
         critic_preds = critic_preds[1:]
 
+        na1 = (sbm.supermodel.node_preprocessor(na1[0]), na1[1])
+        na2 = (sbm.supermodel.node_preprocessor(na2[0]), na2[1])
+
+        critic_res = sbm.supermodel.actor_critic_graphsage.forwardAB(na1, na2)
+        critic_res = sbm.supermodel.critic(critic_res)
+
+        critic_mean = critic_res[0,0]
+        print_if_verbose(verbose, "critic_mean:", critic_mean.item())
+        critic_std = critic_res[0,1]
+        
+        # Softplus as std has to be positive
+        critic_std = torch.log(1 + torch.exp(-torch.abs(critic_std))) + F.relu(critic_std)
+
+        print_if_verbose(verbose, "critic_std:", critic_std.item())
+
         # Calculate gaussian loss
-        critic_loss = torch.pow(critic_std, -0.5) * torch.exp(-0.5 * (loss - critic_mean) * torch.pow(critic_std, -1))
-        print("critic_loss:", critic_loss.item())
+        critic_loss = -GAUSSIAN_FACTOR*torch.pow(critic_std, -0.5) * torch.exp(-0.5 * torch.pow((loss - critic_mean) * torch.pow(critic_std, -1), 2))
+        # Add term for numerical stability
+        critic_loss -= 1e-4 * critic_std
+
+
+        print_if_verbose(verbose, "critic_loss:", critic_loss.item())
 
     actor_critic_loss = actor_loss + critic_loss
     actor_critic_loss.backward()
@@ -178,9 +222,6 @@ for epoch in range(5):  # loop over the dataset multiple times
             print('[%5d, %5d] loss: %f' %
                   (epoch + 1, i + 1, running_loss / PRINT_FREQUENCY))
             running_loss = 0.0
-            print("Refreshing subgraph...")
-            sbm.refresh_subgraph()
-            print("Refreshed!")
 
 print('Finished Training')
 

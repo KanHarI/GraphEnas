@@ -102,7 +102,7 @@ class Supermodel(nn.Module):
             )
 
         self.critic = nn.Sequential(
-            nn.Linear(GRAPHSAGE_CHANNELS*(2**GRAPHSAGE_NUM_HALVINGS), CRITIC_SIZE_0),
+            nn.Linear(GRAPHSAGE_CHANNELS*(1+GRAPHSAGE_NUM_HALVINGS), CRITIC_SIZE_0),
             nn.ReLU(),
             nn.Linear(CRITIC_SIZE_0, CRITIC_SIZE_1),
             nn.ReLU(),
@@ -210,9 +210,10 @@ class Submodel(nn.Module):
 
         _adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
+        na1 = (_nodes, _adj_matrix)
         _nodes = self.supermodel.node_preprocessor(_nodes)
 
-        graphsage_res = self.supermodel.actor_critic_graphsage((_nodes, _adj_matrix))[0][0]
+        graphsage_res = self.supermodel.actor_critic_graphsage.forwardA((_nodes, _adj_matrix))[0][0]
 
         update_nodes = random.randint(0,1)
         action_log_prob = None
@@ -255,20 +256,18 @@ class Submodel(nn.Module):
 
         adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
+        na2 = (_nodes, _adj_matrix)
         _nodes = self.supermodel.node_preprocessor(_nodes)
 
-        critic_res = self.supermodel.actor_critic_graphsage.f2((_nodes, _adj_matrix))
-        critic_mean = critic_res[0,0]
-        critic_std = torch.exp(critic_res[0,1])
 
-        nograd_critic_mean = torch.tensor(critic_mean.item())
+        with torch.no_grad():
+            critic_res = self.supermodel.actor_critic_graphsage.forwardB((_nodes, _adj_matrix))
+            critic_res = self.supermodel.critic(critic_res)
+            critic_mean = critic_res[0,0]
 
-        if torch.cuda.is_available():
-            nograd_critic_mean = nograd_critic_mean.cuda()
+        actor_loss = action_log_prob * critic_mean
 
-        actor_loss = action_log_prob * nograd_critic_mean
-
-        return actor_loss, critic_mean, critic_std
+        return actor_loss, na1, na2
 
 
     def forward(self, inp):
