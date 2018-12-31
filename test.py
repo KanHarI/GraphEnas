@@ -194,7 +194,7 @@ for i in range(10000):
         # Add term for numerical stability - previously, it areas of relative 
         # stability, STD values dropped too low due to ADAM's momentum and
         # were stuck there with loss around 0.0
-        critic_loss -= 1e-2 * torch.log(critic_std)
+        critic_loss -= 1e-3 * torch.log(critic_std)
 
 
         print_if_verbose(verbose, "critic_loss:", critic_loss.item())
