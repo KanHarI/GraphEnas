@@ -152,9 +152,10 @@ for i in range(10000):
         last_loss = loss
     loss_delta = loss - last_loss
 
-    print_if_verbose("loss_delta:", loss_delta)
+    print_if_verbose(True, "loss_delta:", loss_delta.item())
 
-    ground_truch_losses.append(loss_delta)
+    ground_truch_losses.append(loss_delta.item())
+
     critic_loss = 0.0
     if len(ground_truch_losses) == CRITIC_PLAN_LENGTH:
         it = 0.0
