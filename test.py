@@ -152,7 +152,7 @@ for i in range(10000):
     if last_loss is None:
         last_loss = loss
 
-    loss_delta = loss - last_loss
+    loss_delta = math.log(loss) - math.log(last_loss)
     last_loss = loss
 
     ground_truch_losses.append(loss_delta)
