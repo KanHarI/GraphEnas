@@ -144,17 +144,16 @@ for i in range(10000):
             loss += criterion(outputs, labels)
 
         loss = loss / ((train_iter//5) + 1)
+        loss = loss.item()
 
         print_if_verbose(verbose, 'Accuracy of the network on the test batch images: %d %%' % (100 * correct / total))
         print_if_verbose(verbose, "Test batch loss:", loss.item())
 
     if last_loss is None:
-        last_loss = loss.item()
-    print_if_verbose(True, "loss.item():", loss.item())
-    print_if_verbose(True, "last_loss:", last_loss)
-    loss_delta = loss.item() - last_loss
+        last_loss = loss
 
-    print_if_verbose(True, "loss_delta:", loss_delta)
+    loss_delta = loss - last_loss
+    last_loss = loss
 
     ground_truch_losses.append(loss_delta)
 
