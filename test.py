@@ -93,6 +93,9 @@ def print_if_verbose(v, *args):
 
 for i in range(10000):
     verbose = (i%PRINT_FREQUENCY == 0)
+    if i == 1000:
+        # Start actor acting
+        sbm.softmax.expt += 1.0
     print_if_verbose(verbose, "\n\nStart iteration: ", i)
     actor_critic_optimizer.zero_grad()
     actor_loss, na1, na2 = sbm.refresh_subgraph()
@@ -125,7 +128,7 @@ for i in range(10000):
 
         loss = 0.0
 
-        for i in range((train_iter//5) + 1):
+        for j in range((train_iter//5) + 1):
             data = arch_trainset.__next__()
             inputs, labels = data
         

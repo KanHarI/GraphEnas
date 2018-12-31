@@ -146,7 +146,7 @@ class Submodel(nn.Module):
         self.layers_between_halvings = layers_between_halvings
         self.supergraph = sg.Supergraph(size, channels, self.supermodel.activations_list, layers_between_halvings, inp_channels)
         self.adj_matrix = torch.zeros(size, size)
-        self.softmax = ExplorationExploitationSoftmax(1)
+        self.softmax = ExplorationExploitationSoftmax(0)
         self.saved_pred = []
 
         # Build random initial connections
