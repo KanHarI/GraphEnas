@@ -173,8 +173,8 @@ for i in range(10000):
         critic_res = sbm.supermodel.actor_critic_graphsage.forwardAB(na1, na2)
         critic_res = sbm.supermodel.critic(critic_res)
 
-        print_if_verbose(verbose, "agg_loss:", loss)
-        
+        print_if_verbose(verbose, "agg_loss:", loss.item())
+
         critic_mean = critic_res[0,0]
         print_if_verbose(verbose, "critic_mean:", critic_mean.item())
         critic_std = critic_res[0,1]
