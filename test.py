@@ -150,7 +150,9 @@ for i in range(10000):
 
     if last_loss is None:
         last_loss = loss
-    loss_delta = math.log(loss) - math.log(last_loss)
+    loss_delta = loss - last_loss
+
+    print_if_verbose("loss_delta:", loss_delta)
 
     ground_truch_losses.append(loss_delta)
     critic_loss = 0.0
