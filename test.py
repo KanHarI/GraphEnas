@@ -173,6 +173,8 @@ for i in range(10000):
         critic_res = sbm.supermodel.actor_critic_graphsage.forwardAB(na1, na2)
         critic_res = sbm.supermodel.critic(critic_res)
 
+        print_if_verbose(verbose, "agg_loss:", loss)
+        
         critic_mean = critic_res[0,0]
         print_if_verbose(verbose, "critic_mean:", critic_mean.item())
         critic_std = critic_res[0,1]
@@ -181,6 +183,7 @@ for i in range(10000):
         critic_std = torch.log(1 + torch.exp(-torch.abs(critic_std))) + F.relu(critic_std)
 
         print_if_verbose(verbose, "critic_std:", critic_std.item())
+
 
         # Calculate gaussian loss
         critic_loss = -GAUSSIAN_FACTOR*torch.pow(critic_std, -0.5) * torch.exp(-0.5 * torch.pow((loss - critic_mean) * torch.pow(critic_std, -1), 2))
