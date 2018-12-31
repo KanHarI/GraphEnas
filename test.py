@@ -147,7 +147,7 @@ for i in range(10000):
         loss = loss.item()
 
         print_if_verbose(verbose, 'Accuracy of the network on the test batch images: %d %%' % (100 * correct / total))
-        print_if_verbose(verbose, "Test batch loss:", loss.item())
+        print_if_verbose(verbose, "Test batch loss:", loss)
 
     if last_loss is None:
         last_loss = loss
