@@ -69,7 +69,7 @@ criterion = nn.CrossEntropyLoss()
 weights_optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
 actor_critic_optimizer = optim.Adam(sbm.supermodel.parameters())
 
-PRINT_FREQUENCY = 1
+PRINT_FREQUENCY = 20
 
 
 weights_trainset = dataset_infigen(weights_trainset)
