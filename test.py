@@ -55,10 +55,10 @@ def dataset_infigen(dataset):
         for data in trainloader:
             yield data
 
-SUBMODEL_LAYERS = 10
+SUBMODEL_LAYERS = 20
 LAYERS_BETWEEN_HALVINGS = 4
 OUTPUT_DIM = 10
-SUBMODEL_CHANNELS = 10
+SUBMODEL_CHANNELS = 20
 
 sbm = supermodel.create_submodel(SUBMODEL_LAYERS, LAYERS_BETWEEN_HALVINGS, OUTPUT_DIM, SUBMODEL_CHANNELS)
 
@@ -183,8 +183,8 @@ for i in range(10000):
         critic_loss = -GAUSSIAN_FACTOR*torch.pow(critic_std, -0.5) * torch.exp(-0.5 * torch.pow((loss - critic_mean) * torch.pow(critic_std, -1), 2))
         # Add term for numerical stability - previously, it areas of relative 
         # stability, STD values dropped too low due to ADAM's momentum and
-        # were stuck there with loss=0.0
-        critic_loss -= 1e-4 * critic_std
+        # were stuck there with loss around 0.0
+        critic_loss -= 1e-3 * critic_std
 
 
         print_if_verbose(verbose, "critic_loss:", critic_loss.item())
