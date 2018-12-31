@@ -77,7 +77,7 @@ arch_trainset = dataset_infigen(arch_trainset)
 
 
 TRAIN_STEP_TIME = 1.0 # Seconds
-CRITIC_PLAN_LENGTH = 20
+CRITIC_PLAN_LENGTH = 6
 
 critic_preds = []
 ground_truch_losses = []
