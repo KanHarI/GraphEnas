@@ -67,7 +67,7 @@ if torch.cuda.is_available():
 
 criterion = nn.CrossEntropyLoss()
 weights_optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
-actor_critic_optimizer = optim.SGD(sbm.supermodel.parameters(), lr=0.01, momentum=0.99)
+actor_critic_optimizer = optim.SGD(sbm.supermodel.parameters(), lr=0.01, momentum=0.95)
 
 PRINT_FREQUENCY = 20
 
