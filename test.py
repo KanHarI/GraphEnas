@@ -77,7 +77,7 @@ arch_trainset = dataset_infigen(arch_trainset)
 
 
 TRAIN_STEP_TIME = 1.0 # Seconds
-CRITIC_PLAN_LENGTH = 10
+CRITIC_PLAN_LENGTH = 20
 
 critic_preds = []
 ground_truch_losses = []
@@ -139,10 +139,11 @@ for i in range(10000):
             correct = (predicted == labels).sum().item()
     
             loss += criterion(outputs, labels)
+
         loss = loss / ((train_iter//5) + 1)
 
         print_if_verbose(verbose, 'Accuracy of the network on the test batch images: %d %%' % (100 * correct / total))
-        print_if_verbose(verbose, "Arch loss:", loss.item())
+        print_if_verbose(verbose, "Test batch loss:", loss.item())
 
     if last_loss is None:
         last_loss = loss
@@ -180,7 +181,9 @@ for i in range(10000):
 
         # Calculate gaussian loss
         critic_loss = -GAUSSIAN_FACTOR*torch.pow(critic_std, -0.5) * torch.exp(-0.5 * torch.pow((loss - critic_mean) * torch.pow(critic_std, -1), 2))
-        # Add term for numerical stability
+        # Add term for numerical stability - previously, it areas of relative 
+        # stability, STD values dropped too low due to ADAM's momentum and
+        # were stuck there with loss=0.0
         critic_loss -= 1e-4 * critic_std
 
 
