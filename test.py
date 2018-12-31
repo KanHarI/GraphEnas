@@ -149,8 +149,10 @@ for i in range(10000):
         print_if_verbose(verbose, "Test batch loss:", loss.item())
 
     if last_loss is None:
-        last_loss = loss
-    loss_delta = loss - last_loss
+        last_loss = loss.item()
+    print_if_verbose(True, "loss.item():", loss.item())
+    print_if_verbose(True, "last_loss:", last_loss)
+    loss_delta = loss.item() - last_loss
 
     print_if_verbose(True, "loss_delta:", loss_delta.item())
 
