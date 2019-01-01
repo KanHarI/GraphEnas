@@ -106,7 +106,7 @@ ACTOR_TO_CRITIC_GRAD_RATIO = 0.2
 
 for i in range(20000):
     verbose = (i%PRINT_FREQUENCY == 0)
-    if i == 200:
+    if i == 100:
         # Turn on actor
         sbm.softmax.expt += 1.0
     print_if_verbose(verbose, "\n\nStart iteration: ", i)
