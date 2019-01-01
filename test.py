@@ -101,6 +101,9 @@ def print_if_verbose(v, *args):
     if v:
         print(*args)
 
+# Empiriccally, the critic needs more weight in the gradient...
+ACTOR_TO_CRITIC_GRAD_RATIO = 0.2
+
 for i in range(20000):
     verbose = (i%PRINT_FREQUENCY == 0)
     if i == 200:
@@ -115,8 +118,10 @@ for i in range(20000):
     train_iter = 0
 
     start_time = time.time()
+    # Time is randomized to eliminate granularity of incentive to simplify
+    # computation graph
     train_time = 2.0*TRAIN_STEP_TIME*random.random()
-    while (time.time() - start_time) < TRAIN_STEP_TIME:
+    while (time.time() - start_time) < train_time:
         train_iter += 1
         data = weights_trainset.__next__()
         inputs, labels = data
@@ -214,7 +219,7 @@ for i in range(20000):
             print("critic_corr:", critic_corr)
 
 
-    actor_critic_loss = actor_loss + critic_loss
+    actor_critic_loss = ACTOR_TO_CRITIC_GRAD_RATIO*actor_loss + critic_loss
     actor_critic_loss.backward()
     actor_critic_optimizer.step()
 
