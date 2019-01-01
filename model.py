@@ -59,6 +59,9 @@ PAIR_SELECTOR_SIZE_2 = 100
 PAIR_SELECTOR_SIZE_3 = 50
 PAIR_SELECTOR_SIZE_4 = 10
 
+NODE_PROCESSOR_SIZE_0 = 200
+NODE_PROCESSOR_SIZE_1 = 50
+
 CRITIC_SIZE_0 = 1000
 CRITIC_SIZE_1 = 100
 CRITIC_SIZE_2 = 10
@@ -77,18 +80,23 @@ class Supermodel(nn.Module):
 
         self.actor_critic_graphsage = gs.BiPyramid(GRAPHSAGE_LAYER_PER_DIM, GRAPHSAGE_NUM_HALVINGS, GRAPHSAGE_CHANNELS)
         
-        # +1 for priority, + max_halvings for amount of dimensional halvings
-        node_output_feature_sizes = len(activations_list)
         self.node_preprocessor = nn.Sequential(
             nn.Linear(self.input_feature_sizes, NODE_PREPROCESS_SIZE),
             sg.SoftRelu(),
             nn.Linear(NODE_PREPROCESS_SIZE, GRAPHSAGE_CHANNELS))
-        self.node_processor = nn.Linear(self.input_feature_sizes + GRAPHSAGE_CHANNELS, node_output_feature_sizes)
+
+        node_output_feature_sizes = len(activations_list)
+        self.node_processor = nn.Sequential(
+            nn.Linear(self.input_feature_sizes + GRAPHSAGE_CHANNELS - 3, NODE_PROCESSOR_SIZE_0),
+            sg.SoftRelu(),
+            nn.Linear(NODE_PROCESSOR_SIZE_0, NODE_PROCESSOR_SIZE_1),
+            sg.SoftRelu(),
+            nn.Linear(NODE_PROCESSOR_SIZE_1, node_output_feature_sizes))
 
         # inputs: +current distance, +1 for current connectedness
-        # outputs: priority, connectedeness [yes\no]
+        # outputs: connectedeness [yes\no], priority
         self.pair_selector = nn.Sequential(
-            nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_CHANNELS*2 + self.log2_max_size + 1, PAIR_SELECTOR_SIZE_0),
+            nn.Linear(self.input_feature_sizes*2 + (GRAPHSAGE_CHANNELS-3)*2 + self.log2_max_size + 1, PAIR_SELECTOR_SIZE_0),
             sg.SoftRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_0, PAIR_SELECTOR_SIZE_1),
             sg.SoftRelu(),
@@ -98,7 +106,7 @@ class Supermodel(nn.Module):
             sg.SoftRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_3, PAIR_SELECTOR_SIZE_4),
             sg.SoftRelu(),
-            nn.Linear(PAIR_SELECTOR_SIZE_4, 2)
+            nn.Linear(PAIR_SELECTOR_SIZE_4, 2 + 1)
             )
 
         self.critic = nn.Sequential(
@@ -214,14 +222,18 @@ class Submodel(nn.Module):
         _nodes = self.supermodel.node_preprocessor(_nodes)
 
         graphsage_res = self.supermodel.actor_critic_graphsage.forwardA((_nodes, _adj_matrix))[0][0]
+        priority = graphsage_res[:,-3:].t()
+        graphsage_res = graphsage_res[:,:-3]
 
-        update_nodes = random.randint(0,1)
+        # 3 options: select node, select edge by source, select edge by dest
+        update_method = random.randint(0,2)
         action_log_prob = None
-        if update_nodes > 0:
-            cn = random.randint(1,self.size-2)
+        if update_method == 0:
+            cn_d = distributions.Categorical(self.softmax(priority[0,1:self.size-1]))
+            cn = cn_d.sample()
+            action_log_prob = cn_d.log_prob(cn)
+
             node_processor_inp = torch.cat([nodes[cn], graphsage_res[cn]], dim=-1)
-            # if torch.cuda.is_available():
-            #     node_processor_inp = node_processor_inp.cuda()
 
             node_processor_out = self.softmax(self.supermodel.node_processor(node_processor_inp))
             node_processor_out = distributions.Categorical(node_processor_out)
@@ -229,9 +241,14 @@ class Submodel(nn.Module):
             nodes[cn, 2 + self.chosen_activations[cn]] = 0
             self.chosen_activations[cn] = selected_activation
             nodes[cn, 2 + self.chosen_activations[cn]] = 1
-            action_log_prob = node_processor_out.log_prob(selected_activation)
+            action_log_prob += node_processor_out.log_prob(selected_activation)
 
         else: # edge update
+            if update_method == 1:
+                src_d = distributions.Categorical(self.softmax(priority[1,:self.size-1]))
+                src = src_d.sample()
+                action_log_prob = src_d.log_prob(src)
+                # TODO
             src = random.randint(0, self.size-2)
             dst = random.randint(src+1 ,self.size-1)
             distance = torch.zeros(self.supermodel.log2_max_size)

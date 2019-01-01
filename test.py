@@ -62,7 +62,7 @@ def dataset_infigen(dataset):
         for data in trainloader:
             yield data
 
-SUBMODEL_LAYERS = 41
+SUBMODEL_LAYERS = 5
 LAYERS_BETWEEN_HALVINGS = 8
 OUTPUT_DIM = 10
 SUBMODEL_CHANNELS = 20
@@ -84,7 +84,7 @@ arch_trainset = dataset_infigen(arch_trainset)
 
 
 TRAIN_STEP_TIME = 2.0 # Seconds
-CRITIC_PLAN_LENGTH = 10
+CRITIC_PLAN_LENGTH = 6
 
 critic_preds = []
 ground_truch_losses = []
@@ -92,7 +92,7 @@ ground_truch_losses = []
 last_loss = None
 
 GAUSSIAN_FACTOR = (2*math.pi)**(-0.5)
-GAMMA = (1.0 - 1.0/((1+CRITIC_PLAN_LENGTH)//2))
+GAMMA = (1.0 - 1.0/CRITIC_PLAN_LENGTH)
 
 critic_res_for_corr = []
 agg_loss_for_corr = []
@@ -101,13 +101,17 @@ def print_if_verbose(v, *args):
     if v:
         print(*args)
 
-# Empiriccally, the critic needs more weight in the gradient...
+# Empiricly, the actor needs less weight in the gradient then the critic...
 ACTOR_TO_CRITIC_GRAD_RATIO = 0.2
+NUM_EPISODES = 20000
 
-for i in range(20000):
+for i in range(NUM_EPISODES):
     verbose = (i%PRINT_FREQUENCY == 0)
-    if i == 100:
-        # Turn on actor
+    if i < 2000 and i%100 == 0:
+        # Slowly turn on actor...
+        sbm.softmax.expt += 0.05
+    if i > NUM_EPISODES - 1000 and i%100 == 0:
+        # Move from expliration to exploitation:
         sbm.softmax.expt += 1.0
     print_if_verbose(verbose, "\n\nStart iteration: ", i)
     actor_critic_optimizer.zero_grad()
