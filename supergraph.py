@@ -15,6 +15,13 @@ def activation(tensor):
     return torch.log(1 + torch.exp(-2*torch.abs(tensor))) + F.relu(2*tensor) - LN_2
 
 
+class SoftRelu(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, t):
+        return activation(t)
+
 class Supergraph(nn.Module):
     def __init__(self, sgraph_size, channels_count, activations_list, layers_between_halvings, inp_channels):
         super().__init__()

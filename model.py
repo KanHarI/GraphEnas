@@ -81,7 +81,7 @@ class Supermodel(nn.Module):
         node_output_feature_sizes = len(activations_list)
         self.node_preprocessor = nn.Sequential(
             nn.Linear(self.input_feature_sizes, NODE_PREPROCESS_SIZE),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(NODE_PREPROCESS_SIZE, GRAPHSAGE_CHANNELS))
         self.node_processor = nn.Linear(self.input_feature_sizes + GRAPHSAGE_CHANNELS, node_output_feature_sizes)
 
@@ -89,25 +89,25 @@ class Supermodel(nn.Module):
         # outputs: priority, connectedeness [yes\no]
         self.pair_selector = nn.Sequential(
             nn.Linear(self.input_feature_sizes*2 + GRAPHSAGE_CHANNELS*2 + self.log2_max_size + 1, PAIR_SELECTOR_SIZE_0),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_0, PAIR_SELECTOR_SIZE_1),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_1, PAIR_SELECTOR_SIZE_2),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_2, PAIR_SELECTOR_SIZE_3),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_3, PAIR_SELECTOR_SIZE_4),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_4, 2)
             )
 
         self.critic = nn.Sequential(
             nn.Linear(GRAPHSAGE_CHANNELS*(1+GRAPHSAGE_NUM_HALVINGS), CRITIC_SIZE_0),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(CRITIC_SIZE_0, CRITIC_SIZE_1),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(CRITIC_SIZE_1, CRITIC_SIZE_2),
-            nn.ReLU(),
+            sg.SoftRelu(),
             nn.Linear(CRITIC_SIZE_2, CRITIC_OUTPUT_SIZE))
 
     def cuda(self):

@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import supergraph as sg
+
 import random
 
 import copy
@@ -56,7 +58,7 @@ class GraphSageLayer(nn.Module):
         node_id_rep = self.node_self_rep(nodes_adj[0])
 
         update_src = torch.cat((src_representation, node_id_rep, dst_representation), dim=2)
-        res = torch.tanh(self.node_update(update_src))
+        res = sg.activation(self.node_update(update_src))
         return (res, nodes_adj[1])
 
 

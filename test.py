@@ -9,8 +9,13 @@ import torch.nn as nn
 
 import torch.optim as optim
 
+import numpy as np
+
 import time
 import math
+import random
+
+import sklearn.metrics.pairwise as pairwise
 
 ########################################################################
 # The output of torchvision datasets are PILImage images of range [0, 1].
@@ -50,13 +55,15 @@ train_arch_size = len(trainset) - train_weights_size
 
 weights_trainset, arch_trainset = torch.utils.data.random_split(trainset, [train_weights_size, train_arch_size])
 
+
+
 def dataset_infigen(dataset):
     while True:
         for data in trainloader:
             yield data
 
-SUBMODEL_LAYERS = 20
-LAYERS_BETWEEN_HALVINGS = 4
+SUBMODEL_LAYERS = 41
+LAYERS_BETWEEN_HALVINGS = 8
 OUTPUT_DIM = 10
 SUBMODEL_CHANNELS = 20
 
@@ -67,7 +74,7 @@ if torch.cuda.is_available():
 
 criterion = nn.CrossEntropyLoss()
 weights_optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
-actor_critic_optimizer = optim.SGD(sbm.supermodel.parameters(), lr=0.002, momentum=0.95)
+actor_critic_optimizer = optim.Adam(sbm.supermodel.parameters())
 
 PRINT_FREQUENCY = 20
 
@@ -76,8 +83,8 @@ weights_trainset = dataset_infigen(weights_trainset)
 arch_trainset = dataset_infigen(arch_trainset)
 
 
-TRAIN_STEP_TIME = 1.0 # Seconds
-CRITIC_PLAN_LENGTH = 6
+TRAIN_STEP_TIME = 2.0 # Seconds
+CRITIC_PLAN_LENGTH = 10
 
 critic_preds = []
 ground_truch_losses = []
@@ -87,11 +94,14 @@ last_loss = None
 GAUSSIAN_FACTOR = (2*math.pi)**(-0.5)
 GAMMA = (1.0 - 1.0/((1+CRITIC_PLAN_LENGTH)//2))
 
+critic_res_for_corr = []
+agg_loss_for_corr = []
+
 def print_if_verbose(v, *args):
     if v:
         print(*args)
 
-for i in range(10000):
+for i in range(20000):
     verbose = (i%PRINT_FREQUENCY == 0)
     if i == 200:
         # Turn on actor
@@ -105,6 +115,7 @@ for i in range(10000):
     train_iter = 0
 
     start_time = time.time()
+    train_time = 2.0*TRAIN_STEP_TIME*random.random()
     while (time.time() - start_time) < TRAIN_STEP_TIME:
         train_iter += 1
         data = weights_trainset.__next__()
@@ -163,9 +174,7 @@ for i in range(10000):
         for loss in ground_truch_losses[::-1]:
             it *= GAMMA
             it += loss
-        loss = torch.tensor(it)
-        if torch.cuda.is_available():
-            loss = loss.cuda()
+        loss = it
 
         ground_truch_losses = ground_truch_losses[1:]
         na1, na2 = critic_preds[0]
@@ -177,9 +186,11 @@ for i in range(10000):
         critic_res = sbm.supermodel.actor_critic_graphsage.forwardAB(na1, na2)
         critic_res = sbm.supermodel.critic(critic_res)
 
-        print_if_verbose(verbose, "agg_loss:", loss.item())
+        print_if_verbose(verbose, "agg_loss:", loss)
+        agg_loss_for_corr.append(loss)
 
         critic_mean = critic_res[0,0]
+        critic_res_for_corr.append(critic_mean.item())
         print_if_verbose(verbose, "critic_mean:", critic_mean.item())
         critic_std = critic_res[0,1]
         
@@ -196,8 +207,12 @@ for i in range(10000):
         # were stuck there with loss around 0.0
         critic_loss -= 1e-1 * torch.log(critic_std)
 
-
         print_if_verbose(verbose, "critic_loss:", critic_loss.item())
+
+        if verbose:
+            critic_corr = pairwise.cosine_similarity(np.array([agg_loss_for_corr, critic_res_for_corr]))[0,1]
+            print("critic_corr:", critic_corr)
+
 
     actor_critic_loss = actor_loss + critic_loss
     actor_critic_loss.backward()
