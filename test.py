@@ -62,8 +62,8 @@ def dataset_infigen(dataset):
         for data in trainloader:
             yield data
 
-SUBMODEL_LAYERS = 41
-LAYERS_BETWEEN_HALVINGS = 8
+SUBMODEL_LAYERS = 21
+LAYERS_BETWEEN_HALVINGS = 4
 OUTPUT_DIM = 10
 SUBMODEL_CHANNELS = 20
 
