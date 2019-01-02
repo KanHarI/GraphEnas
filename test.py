@@ -62,7 +62,7 @@ def dataset_infigen(dataset):
         for data in trainloader:
             yield data
 
-SUBMODEL_LAYERS = 5
+SUBMODEL_LAYERS = 41
 LAYERS_BETWEEN_HALVINGS = 8
 OUTPUT_DIM = 10
 SUBMODEL_CHANNELS = 20
@@ -221,6 +221,8 @@ for i in range(NUM_EPISODES):
         if verbose:
             critic_corr = pairwise.cosine_similarity(np.array([agg_loss_for_corr, critic_res_for_corr]))[0,1]
             print("critic_corr:", critic_corr)
+            agg_loss_for_corr = agg_loss_for_corr[-PRINT_FREQUENCY:]
+            critic_res_for_corr = critic_res_for_corr[-PRINT_FREQUENCY:]
 
 
     actor_critic_loss = ACTOR_TO_CRITIC_GRAD_RATIO*actor_loss + critic_loss

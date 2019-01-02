@@ -284,6 +284,8 @@ class Submodel(nn.Module):
 
         actor_loss = action_log_prob * critic_mean
 
+        self.subgraph = self.supergraph.create_subgraph(self.chosen_activations, self.adj_matrix)
+
         return actor_loss, na1, na2
 
 
