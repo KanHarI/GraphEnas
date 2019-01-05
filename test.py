@@ -45,7 +45,10 @@ else:
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
-supermodel = model.Supermodel()
+MODEL_MAX_SIZE = 32
+MAX_HALVINGS = 6
+
+supermodel = model.Supermodel(max_size=MODEL_MAX_SIZE, max_halvings=MAX_HALVINGS)
 
 if torch.cuda.is_available():
     supermodel = supermodel.cuda()
@@ -62,7 +65,7 @@ def dataset_infigen(dataset):
         for data in trainloader:
             yield data
 
-SUBMODEL_LAYERS = 21
+SUBMODEL_LAYERS = 5
 LAYERS_BETWEEN_HALVINGS = 4
 OUTPUT_DIM = 10
 SUBMODEL_CHANNELS = 20
@@ -76,15 +79,16 @@ criterion = nn.CrossEntropyLoss()
 weights_optimizer = optim.SGD(sbm.parameters(), lr=0.001, momentum=0.9)
 actor_critic_optimizer = optim.Adam(sbm.supermodel.parameters())
 
-PRINT_FREQUENCY = 20
+PRINT_FREQUENCY = 1
+CORRELATION_WINDOW_SIZE = 200
 
 
 weights_trainset = dataset_infigen(weights_trainset)
 arch_trainset = dataset_infigen(arch_trainset)
 
 
-TRAIN_STEP_TIME = 2.0 # Seconds
-CRITIC_PLAN_LENGTH = 6
+TRAIN_STEP_TIME = 0.5 # Seconds
+CRITIC_PLAN_LENGTH = 10
 
 critic_preds = []
 ground_truch_losses = []
@@ -107,9 +111,9 @@ NUM_EPISODES = 20000
 
 for i in range(NUM_EPISODES):
     verbose = (i%PRINT_FREQUENCY == 0)
-    if i < 2000 and i%100 == 0:
-        # Slowly turn on actor...
-        sbm.softmax.expt += 0.05
+    if i == 2000:
+        # Turn on actor
+        sbm.softmax.expt += 1.0
     if i > NUM_EPISODES - 1000 and i%100 == 0:
         # Move from expliration to exploitation:
         sbm.softmax.expt += 1.0
@@ -139,6 +143,8 @@ for i in range(NUM_EPISODES):
         loss = criterion(outputs, labels)
         loss.backward()
         weights_optimizer.step()
+        # Clean grad before next graph update
+        weights_optimizer.zero_grad()
 
     print_if_verbose(verbose, "weights train iterations:", train_iter)
 
@@ -214,15 +220,18 @@ for i in range(NUM_EPISODES):
         # Add term for numerical stability - previously, it areas of relative 
         # stability, STD values dropped too low due to ADAM's momentum and
         # were stuck there with loss around 0.0
-        critic_loss -= 1e-1 * torch.log(critic_std)
+        if critic_loss.item() > -1e-3:
+            critic_loss += torch.pow((loss - critic_mean), 2)
+            if critic_std.item() < 1.0:
+                critic_loss -= 1e-1 * torch.log(critic_std)
 
         print_if_verbose(verbose, "critic_loss:", critic_loss.item())
 
         if verbose:
             critic_corr = pairwise.cosine_similarity(np.array([agg_loss_for_corr, critic_res_for_corr]))[0,1]
             print("critic_corr:", critic_corr)
-            agg_loss_for_corr = agg_loss_for_corr[-PRINT_FREQUENCY:]
-            critic_res_for_corr = critic_res_for_corr[-PRINT_FREQUENCY:]
+            agg_loss_for_corr = agg_loss_for_corr[-CORRELATION_WINDOW_SIZE:]
+            critic_res_for_corr = critic_res_for_corr[-CORRELATION_WINDOW_SIZE:]
 
 
     actor_critic_loss = ACTOR_TO_CRITIC_GRAD_RATIO*actor_loss + critic_loss

@@ -75,10 +75,12 @@ class Supermodel(nn.Module):
         self.max_halvings = max_halvings
         self.log2_max_size = math.ceil(math.log2(max_size))
         self.activations_list = activations_list
-        # +2 for input, output nodes
-        self.input_feature_sizes = 2 + len(activations_list) + self.log2_max_size*2 + max_halvings*2
+        # +2 for input, output nodes, +2 for number of incoming and outgoing connections
+        self.input_feature_sizes = 2 + len(activations_list) + self.log2_max_size*2 + max_halvings*2 +2
 
-        self.actor_critic_graphsage = gs.BiPyramid(GRAPHSAGE_LAYER_PER_DIM, GRAPHSAGE_NUM_HALVINGS, GRAPHSAGE_CHANNELS)
+        self.graphsage_num_halvings = math.ceil(math.log2(max_size))
+
+        self.actor_critic_graphsage = gs.BiPyramid(GRAPHSAGE_LAYER_PER_DIM, self.graphsage_num_halvings, GRAPHSAGE_CHANNELS)
         
         self.node_preprocessor = nn.Sequential(
             nn.Linear(self.input_feature_sizes, NODE_PREPROCESS_SIZE),
@@ -110,7 +112,7 @@ class Supermodel(nn.Module):
             )
 
         self.critic = nn.Sequential(
-            nn.Linear(GRAPHSAGE_CHANNELS*(1+GRAPHSAGE_NUM_HALVINGS), CRITIC_SIZE_0),
+            nn.Linear(GRAPHSAGE_CHANNELS*(1+self.graphsage_num_halvings), CRITIC_SIZE_0),
             sg.SoftRelu(),
             nn.Linear(CRITIC_SIZE_0, CRITIC_SIZE_1),
             sg.SoftRelu(),
@@ -197,24 +199,33 @@ class Submodel(nn.Module):
             else:
                 nodes[i,2 + self.chosen_activations[i]] = 1
 
-            # Add position pointers
-            ptr_for = 2 + len(self.supermodel.activations_list)
-            ptr_rev = ptr_for + self.supermodel.log2_max_size
-            for i in range(self.size):
-                for_rep = ('0'*self.supermodel.log2_max_size + bin(i)[2:])[-self.supermodel.log2_max_size:]
-                rev_rep = ('0'*self.supermodel.log2_max_size + bin(self.size-1-i)[2:])[-self.supermodel.log2_max_size:]
-                for j in range(self.supermodel.log2_max_size):
-                    if for_rep[j] == '1':
-                        nodes[i, ptr_for + j] = 1
-                    if rev_rep[j] == '1':
-                        nodes[i, ptr_rev + j] = 1
+        # Add position pointers
+        ptr_for = 2 + len(self.supermodel.activations_list)
+        ptr_rev = ptr_for + self.supermodel.log2_max_size
+        for i in range(self.size):
+            for_rep = ('0'*self.supermodel.log2_max_size + bin(i)[2:])[-self.supermodel.log2_max_size:]
+            rev_rep = ('0'*self.supermodel.log2_max_size + bin(self.size-1-i)[2:])[-self.supermodel.log2_max_size:]
+            for j in range(self.supermodel.log2_max_size):
+                if for_rep[j] == '1':
+                    nodes[i, ptr_for + j] = 1
+                if rev_rep[j] == '1':
+                    nodes[i, ptr_rev + j] = 1
 
-            # Add halving num
-            ptr_for = ptr_rev + self.supermodel.log2_max_size
-            ptr_rev = ptr_for + self.supermodel.max_halvings
-            for i in range(self.size):
-                nodes[i, ptr_for + i//self.layers_between_halvings] = 1
-                nodes[i, ptr_rev + ((self.size-1) // self.layers_between_halvings) - i // self.layers_between_halvings] = 1
+        # Add halving num
+        ptr_for = ptr_rev + self.supermodel.log2_max_size
+        ptr_rev = ptr_for + self.supermodel.max_halvings
+        for i in range(self.size):
+            nodes[i, ptr_for + i//self.layers_between_halvings] = 1
+            nodes[i, ptr_rev + ((self.size-1) // self.layers_between_halvings) - i // self.layers_between_halvings] = 1
+
+        for i in range(self.size-1):
+            for j in range(i,self.size):
+                if self.adj_matrix[i,j] == 1:
+                    nodes[i,-2] += 1
+                    nodes[j, -1] += 1
+
+
+        # TODO: cound incoming and outgoing connections
 
         _adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
@@ -251,6 +262,8 @@ class Submodel(nn.Module):
                 # TODO
             src = random.randint(0, self.size-2)
             dst = random.randint(src+1 ,self.size-1)
+            nodes[src, -2] -= 1
+            nodes[dst, -1] -= 1
             distance = torch.zeros(self.supermodel.log2_max_size)
             
             if torch.cuda.is_available():
@@ -268,13 +281,16 @@ class Submodel(nn.Module):
             edge_processor_out = self.softmax(self.supermodel.pair_selector(edge_processor_inp))
             edge_processor_out = distributions.Categorical(edge_processor_out)
             selected_edge_conn = edge_processor_out.sample()
+            if selected_edge_conn == 1:
+                nodes[src, -2] += 1
+                nodes[dst, -1] += 1
             self.adj_matrix[src, dst] = selected_edge_conn
             action_log_prob = edge_processor_out.log_prob(selected_edge_conn)
 
         adj_matrix = torch.stack([self.adj_matrix])
         _nodes = torch.stack([nodes])
         na2 = (_nodes, _adj_matrix)
-        _nodes = self.supermodel.node_preprocessor(_nodes)
+        _nodes = self.supermodel.node_preprocessor(_nodes - na1[0])
 
 
         with torch.no_grad():

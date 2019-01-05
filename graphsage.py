@@ -224,36 +224,9 @@ class BiPyramid(nn.Module):
         return nodes_adj[0].mean(1)
 
     def forwardAB(self, na1, na2):
-        self.stash = biqueue.Biqueue()
-
-        nodes_adj = na1
-        # Downstream
-        for l in self.layers_1:
-            nodes_adj = l(nodes_adj)
-            self.stash.push_back(nodes_adj)
-
-        # Upstream
-        for i,l in enumerate(self.layers_2):
-            adj = self.stash.get(-1-i)[1]
-            nodes = nodes_adj[0][:,:adj.shape[1],:] + self.links_12[i](self.stash.get(-1-i)[0])
-            nodes = nodes[:,:adj.shape[1],:]
-            nodes_adj = (nodes, adj)
-            nodes_adj = l(nodes_adj)
-            self.stash.push_front(nodes_adj)
-
-        nodes_adj = na2
-        poi = len(self.stash.data)//2
-        # Downstream
-        for i,l in enumerate(self.layers_3):
-            nodes, adj = nodes_adj
-            nodes = self.links_23[i](self.stash.get(i)[0])[:,:adj.shape[1],:] + nodes
-            nodes_adj = nodes, adj
-            nodes_adj = l(nodes_adj)
-            nodes, adj = nodes_adj
-            nodes = nodes + self.links_13[i](self.stash.get(poi+i)[0])
-            nodes_adj = (nodes, adj)
-        
-        return nodes_adj[0].mean(1)
+        self.forwardA(na1)
+        n2 = na2[0]-na1[0]
+        return self.forwardB((n2, na2[1]))
 
 
 class PyramidGraphSage(nn.Module):
