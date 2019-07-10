@@ -12,3 +12,6 @@ This algorithm uses a "Supergraph" DAG in which every node is a layer of the neu
 At every stage, an actor chooses a graph modifying action, and a critic tries to guess the performence of the network on a part of the test set after the given change. The neural net is then trained for a fixed amount of time (time is chosen as otherwise the NN can degrade into allowing all possible skip connecitons, as this is a stronger yet much too slow connection). The critic loss is the delta between the actual network performence and the predicted network performance, and the actor loss is based upon it's performence as predicted by the critic.
 
 At every training batch, the shared wights are updated as in the original "Efficient Neural Architecture Search via Weight Sharing" paper.
+
+#Running
+Install pytorch and scikit-learn. Then run `py -3 -m test`. Works much better on GPU-equipped systems...
