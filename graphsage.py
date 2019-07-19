@@ -3,9 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import supergraph as sg
-
-import random
+from fuzzy_relu import fuzzy_relu
 
 import copy
 import math
@@ -58,7 +56,7 @@ class GraphSageLayer(nn.Module):
         node_id_rep = self.node_self_rep(nodes_adj[0])
 
         update_src = torch.cat((src_representation, node_id_rep, dst_representation), dim=2)
-        res = sg.activation(self.node_update(update_src))
+        res = fuzzy_relu(self.node_update(update_src))
         return (res, nodes_adj[1])
 
 

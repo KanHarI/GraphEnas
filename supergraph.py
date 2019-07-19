@@ -1,18 +1,11 @@
 
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import math
-
-
-LN_2 = math.log(2)
-def activation(tensor):
-    # A modified softplus that admits a d(activation)/dt (t=0) = 1
-    # and activation(0) = 0.
-    # An activation of relu is irrelevant in this case as frequent
-    # architecture changes causes lots of dead neurons...
-    return torch.log(1 + torch.exp(-2*torch.abs(tensor))) + F.relu(2*tensor) - LN_2
+from fuzzy_relu import fuzzy_relu
 
 
 class SoftRelu(nn.Module):
@@ -20,7 +13,8 @@ class SoftRelu(nn.Module):
         super().__init__()
 
     def forward(self, t):
-        return activation(t)
+        return fuzzy_relu(t)
+
 
 class Supergraph(nn.Module):
     def __init__(self, sgraph_size, channels_count, activations_list, layers_between_halvings, inp_channels):
@@ -119,6 +113,6 @@ class Subgraph(nn.Module):
                         l_input = l_input.cuda()
                 l_input = self.supergraph.norms[i](l_input)
                 l_active = self.supergraph.activations[i][self.chosen_activations[i]] if i < self.supergraph.sgraph_size-1 else lambda x: x
-                outputs[i] = activation(l_active(l_input))
+                outputs[i] = fuzzy_relu(l_active(l_input))
 
         return outputs[self.supergraph.sgraph_size-1]
