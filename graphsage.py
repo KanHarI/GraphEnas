@@ -313,5 +313,3 @@ class PyramidGraphSage(nn.Module):
                 fpass_graph = torch.cat((fpass_graph, stashed_results[self.num_layers-i], stashed_results[self.num_layers-i-1]), dim=2)
             fpass_graph = self.layers[i]((fpass_graph, adj))[0]
         return fpass_graph
-
-

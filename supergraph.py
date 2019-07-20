@@ -5,15 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fuzzy_relu import fuzzy_relu
-
-
-class SoftRelu(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, t):
-        return fuzzy_relu(t)
+from fuzzy_relu import fuzzy_relu, FuzzyRelu
 
 
 class Supergraph(nn.Module):

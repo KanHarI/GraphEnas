@@ -1,14 +1,15 @@
 
-import supergraph as sg
-import graphsage as gs
+import math
+import random
 
 import torch
 import torch.nn as nn
 import torch.distributions as distributions
 import torch.nn.functional as F
 
-import math
-import random
+import supergraph as sg
+import graphsage as gs
+from fuzzy_relu import FuzzyRelu
 
 
 def conv3(channels):
@@ -84,40 +85,40 @@ class Supermodel(nn.Module):
         
         self.node_preprocessor = nn.Sequential(
             nn.Linear(self.input_feature_sizes, NODE_PREPROCESS_SIZE),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(NODE_PREPROCESS_SIZE, GRAPHSAGE_CHANNELS))
 
         node_output_feature_sizes = len(activations_list)
         self.node_processor = nn.Sequential(
             nn.Linear(self.input_feature_sizes + GRAPHSAGE_CHANNELS - 3, NODE_PROCESSOR_SIZE_0),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(NODE_PROCESSOR_SIZE_0, NODE_PROCESSOR_SIZE_1),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(NODE_PROCESSOR_SIZE_1, node_output_feature_sizes))
 
         # inputs: +current distance, +1 for current connectedness
         # outputs: connectedeness [yes\no], priority
         self.pair_selector = nn.Sequential(
             nn.Linear(self.input_feature_sizes*2 + (GRAPHSAGE_CHANNELS-3)*2 + self.log2_max_size + 1, PAIR_SELECTOR_SIZE_0),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_0, PAIR_SELECTOR_SIZE_1),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_1, PAIR_SELECTOR_SIZE_2),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_2, PAIR_SELECTOR_SIZE_3),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_3, PAIR_SELECTOR_SIZE_4),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(PAIR_SELECTOR_SIZE_4, 2 + 1)
             )
 
         self.critic = nn.Sequential(
             nn.Linear(GRAPHSAGE_CHANNELS*(1+self.graphsage_num_halvings), CRITIC_SIZE_0),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(CRITIC_SIZE_0, CRITIC_SIZE_1),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(CRITIC_SIZE_1, CRITIC_SIZE_2),
-            sg.SoftRelu(),
+            FuzzyRelu(),
             nn.Linear(CRITIC_SIZE_2, CRITIC_OUTPUT_SIZE))
 
     def cuda(self):
