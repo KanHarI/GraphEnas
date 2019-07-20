@@ -13,5 +13,7 @@ At every stage, an actor chooses a graph modifying action, and a critic tries to
 
 At every training batch, the shared wights are updated as in the original "Efficient Neural Architecture Search via Weight Sharing" paper.
 
+The activation function after all convolutions is a "fuzzy relu" - a modified softplus that has equal value to a relu at 0 and a derivative of 1 to prevent gradient explosion or diminishing.
+
 # Running
 Install pytorch and scikit-learn. Then run `py -3 -m test`. Works much better on GPU-equipped systems...
