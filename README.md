@@ -17,6 +17,10 @@ At every training batch, the shared wights are updated as in the original "Effic
 
 The activation function after all convolutions is a "fuzzy relu" - a modified softplus that has equal value to a relu at 0 and a derivative of 1 to prevent gradient explosion or diminishing.
 
+# Model
+
+The `supergraph.py` file contains the model generating network. The `model.py` file contains the implementation of a single model using the output of the supergraph. The `graphsage.py` file contains the graph convolution neural net.
+
 # Running
 
 Install pytorch and scikit-learn. Then run `py -3 -m test`. Works much better on GPU-equipped systems...
